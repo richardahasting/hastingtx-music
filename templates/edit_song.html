@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Song - HastingTX Music{% endblock %}
+
+{% block content %}
+<div class="upload-page">
+    <h1>Edit Song: {{ song.title }}</h1>
+
+    <div id="edit-form-container">
+        <form id="edit-form">
+            <div class="form-section">
+                <h3>Song Information</h3>
+
+                <div class="form-group">
+                    <label for="title">Title *</label>
+                    <input type="text" id="title" name="title" value="{{ song.title }}" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="artist">Artist</label>
+                    <input type="text" id="artist" name="artist" value="{{ song.artist or '' }}">
+                </div>
+
+                <div class="form-group">
+                    <label for="album">Album</label>
+                    <input type="text" id="album" name="album" value="{{ song.album or '' }}">
+                </div>
+
+                <div class="form-group">
+                    <label for="genre">Genre</label>
+                    <input type="text" id="genre" name="genre" value="{{ song.genre or '' }}">
+                </div>
+
+                <div class="form-group">
+                    <label for="description">Description</label>
+                    <textarea id="description" name="description" rows="3">{{ song.description or '' }}</textarea>
+                </div>
+
+                <div class="form-group">
+                    <label for="lyrics">Lyrics</label>
+                    <textarea id="lyrics" name="lyrics" rows="10">{{ song.lyrics or '' }}</textarea>
+                </div>
+
+                <div class="form-group">
+                    <label for="tags">Tags (comma-separated)</label>
+                    <input type="text" id="tags" name="tags" value="{{ song.tags or '' }}" placeholder="rock, upbeat, summer">
+                </div>
+
+                <div class="form-group">
+                    <label for="identifier">URL Identifier</label>
+                    <input type="text" id="identifier" name="identifier" value="{{ song.identifier }}" placeholder="my-song-title">
+                    <small>Current URL: /music/<strong>{{ song.identifier }}</strong></small>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <h3>File Information (Read-Only)</h3>
+                <p><strong>Filename:</strong> {{ song.filename }}</p>
+                <p><strong>Duration:</strong> {{ song.duration|duration }}</p>
+                <p><strong>File Size:</strong> {{ song.file_size|filesize }}</p>
+                <p><strong>Uploaded:</strong> {{ song.upload_date.strftime('%Y-%m-%d %H:%M') if song.upload_date else 'Unknown' }}</p>
+                <p><strong>Listens:</strong> {{ song.listen_count or 0 }}</p>
+                <p><strong>Downloads:</strong> {{ song.download_count or 0 }}</p>
+            </div>
+
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary" id="submit-btn">Save Changes</button>
+                <a href="{{ url_for('song', identifier=song.identifier) }}" class="btn btn-secondary">Cancel</a>
+                <a href="{{ url_for('admin') }}" class="btn btn-secondary">Back to Admin</a>
+            </div>
+        </form>
+
+        <div id="update-success" class="success-message" style="display: none;">
+            <h2>Update Successful!</h2>
+            <p id="success-message"></p>
+            <div class="success-actions">
+                <a id="view-song-link" href="#" class="btn btn-primary">View Song</a>
+                <a href="{{ url_for('admin') }}" class="btn btn-secondary">Back to Admin</a>
+            </div>
+        </div>
+
+        <div id="update-error" class="error-message" style="display: none;">
+            <h2>Update Failed</h2>
+            <p id="error-message"></p>
+            <button onclick="location.reload()" class="btn btn-secondary">Try Again</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const editForm = document.getElementById('edit-form');
+const submitBtn = document.getElementById('submit-btn');
+
+editForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const formData = new FormData(editForm);
+
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Saving...';
+
+    try {
+        const response = await fetch('/admin/songs/{{ song.id }}/edit', {
+            method: 'POST',
+            body: formData
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            // Show success message
+            document.getElementById('edit-form-container').querySelector('form').style.display = 'none';
+            document.getElementById('success-message').textContent = `"${data.song.title}" has been updated successfully!`;
+            document.getElementById('view-song-link').href = data.url;
+            document.getElementById('update-success').style.display = 'block';
+        } else {
+            throw new Error(data.error || 'Update failed');
+        }
+    } catch (error) {
+        console.error('Update error:', error);
+        document.getElementById('error-message').textContent = error.message;
+        document.getElementById('update-error').style.display = 'block';
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Save Changes';
+    }
+});
+</script>
+{% endblock %}

@@ -53,6 +53,7 @@
                     <td>{{ song.upload_date.strftime('%Y-%m-%d') if song.upload_date else '-' }}</td>
                     <td>
                         <a href="{{ url_for('song', identifier=song.identifier) }}" class="btn-small">View</a>
+                        <a href="{{ url_for('edit_song', song_id=song.id) }}" class="btn-small">Edit</a>
                         <button class="btn-small btn-danger" onclick="deleteSong({{ song.id }}, '{{ song.title }}')">Delete</button>
                     </td>
                 </tr>

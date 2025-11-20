@@ -276,6 +276,53 @@ def upload():
         return jsonify({'error': str(e)}), 500
 
 
+@app.route('/admin/songs/<int:song_id>/edit', methods=['GET', 'POST'])
+@require_admin_ip
+def edit_song(song_id):
+    """Edit song metadata."""
+    song = Song.get_by_id(song_id)
+    if not song:
+        abort(404, description="Song not found")
+
+    if request.method == 'GET':
+        playlists = Playlist.get_all()
+        return render_template('edit_song.html', song=song, playlists=playlists)
+
+    # Handle POST - update metadata
+    try:
+        update_data = {}
+
+        # Update fields if provided
+        if request.form.get('title'):
+            update_data['title'] = request.form.get('title')
+        if request.form.get('artist'):
+            update_data['artist'] = request.form.get('artist')
+        if request.form.get('album'):
+            update_data['album'] = request.form.get('album')
+        if 'description' in request.form:
+            update_data['description'] = request.form.get('description')
+        if 'lyrics' in request.form:
+            update_data['lyrics'] = request.form.get('lyrics')
+        if request.form.get('genre'):
+            update_data['genre'] = request.form.get('genre')
+        if 'tags' in request.form:
+            update_data['tags'] = request.form.get('tags')
+        if request.form.get('identifier'):
+            update_data['identifier'] = request.form.get('identifier')
+
+        # Update the song
+        updated_song = Song.update(song_id, **update_data)
+
+        return jsonify({
+            'success': True,
+            'song': dict(updated_song),
+            'url': url_for('song', identifier=updated_song['identifier'])
+        })
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
 @app.route('/admin/playlists/create', methods=['POST'])
 @require_admin_ip
 def create_playlist():

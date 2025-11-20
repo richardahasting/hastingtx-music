@@ -26,6 +26,9 @@
             Download MP3
         </a>
         {% if is_admin_ip %}
+        <a href="{{ url_for('edit_song', song_id=song.id) }}" class="btn btn-secondary">
+            Edit Song
+        </a>
         <a href="{{ url_for('upload') }}" class="btn btn-secondary">
             Upload New Song
         </a>
