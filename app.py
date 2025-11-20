@@ -74,6 +74,13 @@ def index():
     return redirect(url_for('playlist', identifier='all'))
 
 
+@app.route('/music/')
+@app.route('/music')
+def music_home():
+    """Redirect /music to all songs."""
+    return redirect(url_for('playlist', identifier='all'))
+
+
 @app.route('/music/<identifier>')
 def song(identifier):
     """Display a single song player page."""
