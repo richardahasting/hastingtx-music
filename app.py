@@ -33,6 +33,15 @@ def require_admin_ip(f):
     return decorated_function
 
 
+# Template context processor
+@app.context_processor
+def inject_admin_status():
+    """Make admin IP status available to all templates."""
+    client_ip = request.remote_addr
+    is_admin = is_ip_allowed(client_ip, config.ADMIN_IP_WHITELIST)
+    return dict(is_admin_ip=is_admin)
+
+
 # Template filters
 @app.template_filter('duration')
 def duration_filter(seconds):

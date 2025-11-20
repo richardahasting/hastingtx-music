@@ -25,6 +25,11 @@
         <a href="{{ url_for('download_song', identifier=song.identifier) }}" class="btn btn-primary">
             Download MP3
         </a>
+        {% if is_admin_ip %}
+        <a href="{{ url_for('upload') }}" class="btn btn-secondary">
+            Upload New Song
+        </a>
+        {% endif %}
     </div>
 
     <div class="song-stats">

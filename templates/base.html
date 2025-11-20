@@ -16,6 +16,10 @@
                 </h1>
                 <ul class="nav-links">
                     <li><a href="{{ url_for('playlist', identifier='all') }}">All Songs</a></li>
+                    {% if is_admin_ip %}
+                    <li><a href="{{ url_for('upload') }}" class="admin-link">Upload</a></li>
+                    <li><a href="{{ url_for('admin') }}" class="admin-link">Admin</a></li>
+                    {% endif %}
                     {% block nav_extra %}{% endblock %}
                 </ul>
             </div>

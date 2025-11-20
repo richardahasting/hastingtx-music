@@ -59,6 +59,18 @@ header {
     opacity: 0.8;
 }
 
+.nav-links .admin-link {
+    background-color: rgba(52, 152, 219, 0.2);
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    transition: background-color 0.2s;
+}
+
+.nav-links .admin-link:hover {
+    background-color: rgba(52, 152, 219, 0.4);
+    opacity: 1;
+}
+
 /* Main Content */
 main {
     min-height: calc(100vh - 200px);
@@ -173,6 +185,10 @@ footer {
 .song-actions {
     text-align: center;
     margin: 2rem 0;
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+    flex-wrap: wrap;
 }
 
 .song-stats {
@@ -328,6 +344,9 @@ footer {
 
 .playlist-actions {
     margin: 1.5rem 0;
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
 }
 
 /* Song Table */

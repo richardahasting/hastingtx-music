@@ -17,6 +17,14 @@
         <a href="{{ url_for('download_playlist', identifier=playlist.identifier) }}" class="btn btn-primary">
             Download All as ZIP
         </a>
+        {% if is_admin_ip %}
+        <a href="{{ url_for('upload') }}" class="btn btn-secondary">
+            Upload New Song
+        </a>
+        <a href="{{ url_for('admin') }}" class="btn btn-secondary">
+            Manage Playlists
+        </a>
+        {% endif %}
     </div>
 
     <div class="song-list">
