@@ -1,0 +1,152 @@
+{% extends "base.html" %}
+
+{% block title %}{{ song.title }} - HastingTX Music{% endblock %}
+
+{% block content %}
+<div class="song-player">
+    <div class="song-header">
+        <h1>{{ song.title }}</h1>
+        {% if song.artist %}
+        <p class="artist">by {{ song.artist }}</p>
+        {% endif %}
+        {% if song.album %}
+        <p class="album">from {{ song.album }}</p>
+        {% endif %}
+    </div>
+
+    <div class="player-section">
+        <audio id="audio-player" controls preload="auto">
+            <source src="{{ url_for('static', filename='uploads/' + song.filename) }}" type="audio/mpeg">
+            Your browser does not support the audio element.
+        </audio>
+    </div>
+
+    <div class="song-actions">
+        <a href="{{ url_for('download_song', identifier=song.identifier) }}" class="btn btn-primary">
+            Download MP3
+        </a>
+    </div>
+
+    <div class="song-stats">
+        <span class="stat">
+            <strong>Listens:</strong> {{ song.listen_count or 0 }}
+        </span>
+        <span class="stat">
+            <strong>Downloads:</strong> {{ song.download_count or 0 }}
+        </span>
+        {% if song.duration %}
+        <span class="stat">
+            <strong>Duration:</strong> {{ song.duration|duration }}
+        </span>
+        {% endif %}
+        {% if song.file_size %}
+        <span class="stat">
+            <strong>Size:</strong> {{ song.file_size|filesize }}
+        </span>
+        {% endif %}
+    </div>
+
+    <!-- Rating Section -->
+    <div class="rating-section">
+        <h3>Rate this song</h3>
+
+        {% if rating_count >= 4 and avg_rating %}
+        <div class="average-rating">
+            <div class="rating-display">
+                <span class="rating-value">{{ avg_rating }}</span> / 10
+            </div>
+            <div class="rating-count">Based on {{ rating_count }} rating{% if rating_count != 1 %}s{% endif %}</div>
+        </div>
+        {% elif rating_count > 0 %}
+        <div class="rating-count">{{ rating_count }} rating{% if rating_count != 1 %}s{% endif %} so far (need 4 to display average)</div>
+        {% endif %}
+
+        <div class="rating-input">
+            <div class="rating-stars" data-song-id="{{ song.id }}" data-current-rating="{{ user_rating or 0 }}">
+                {% for i in range(1, 11) %}
+                <button class="star-btn {% if user_rating and i <= user_rating %}active{% endif %}" data-rating="{{ i }}">
+                    {{ i }}
+                </button>
+                {% endfor %}
+            </div>
+            {% if user_rating %}
+            <p class="user-rating-text">Your rating: {{ user_rating }}/10</p>
+            {% else %}
+            <p class="user-rating-text">Click a number to rate</p>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if song.description %}
+    <div class="song-description">
+        <h3>About this song</h3>
+        <p>{{ song.description }}</p>
+    </div>
+    {% endif %}
+
+    {% if song.lyrics %}
+    <div class="song-lyrics">
+        <h3>Lyrics</h3>
+        <pre>{{ song.lyrics }}</pre>
+    </div>
+    {% endif %}
+
+    {% if song.genre or song.tags %}
+    <div class="song-metadata">
+        {% if song.genre %}
+        <p><strong>Genre:</strong> {{ song.genre }}</p>
+        {% endif %}
+        {% if song.tags %}
+        <p><strong>Tags:</strong> {{ song.tags }}</p>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <div class="back-link">
+        <a href="{{ url_for('playlist', identifier='all') }}">&larr; Back to all songs</a>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Rating submission
+document.querySelectorAll('.star-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+        const rating = parseInt(this.dataset.rating);
+        const songId = this.closest('.rating-stars').dataset.songId;
+
+        fetch(`/api/songs/${songId}/rate`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ rating: rating })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Update UI
+                document.querySelectorAll('.star-btn').forEach(b => {
+                    b.classList.toggle('active', parseInt(b.dataset.rating) <= rating);
+                });
+
+                // Update user rating text
+                document.querySelector('.user-rating-text').textContent = `Your rating: ${rating}/10`;
+
+                // Update average if available
+                if (data.rating_count >= 4 && data.avg_rating) {
+                    location.reload(); // Reload to show updated average
+                }
+            } else {
+                alert('Error submitting rating: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error submitting rating');
+        });
+    });
+});
+</script>
+{% endblock %}

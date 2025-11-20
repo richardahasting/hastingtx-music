@@ -1,0 +1,429 @@
+"""HastingTX Music - Flask application for sharing and managing music."""
+import os
+import zipfile
+from io import BytesIO
+from functools import wraps
+from flask import Flask, render_template, request, jsonify, send_file, redirect, url_for, abort
+from werkzeug.exceptions import RequestEntityTooLarge
+
+from config import config
+from models import Song, Playlist, Rating
+from utils import (
+    allowed_file, generate_identifier, extract_mp3_metadata,
+    save_uploaded_file, is_ip_allowed, format_duration, format_file_size
+)
+
+# Initialize Flask app
+app = Flask(__name__)
+app.config.from_object(config)
+config.init_app(app)
+
+
+# IP whitelist decorator
+def require_admin_ip(f):
+    """Decorator to restrict access to whitelisted IPs."""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        client_ip = request.remote_addr
+
+        if not is_ip_allowed(client_ip, config.ADMIN_IP_WHITELIST):
+            abort(403, description="Access denied: IP not whitelisted")
+
+        return f(*args, **kwargs)
+    return decorated_function
+
+
+# Template filters
+@app.template_filter('duration')
+def duration_filter(seconds):
+    """Format duration for templates."""
+    return format_duration(seconds)
+
+
+@app.template_filter('filesize')
+def filesize_filter(bytes_size):
+    """Format file size for templates."""
+    return format_file_size(bytes_size)
+
+
+# Error handlers
+@app.errorhandler(404)
+def not_found(e):
+    """Handle 404 errors."""
+    return render_template('error.html', error="Page not found", code=404), 404
+
+
+@app.errorhandler(403)
+def forbidden(e):
+    """Handle 403 errors."""
+    return render_template('error.html', error=str(e.description), code=403), 403
+
+
+@app.errorhandler(RequestEntityTooLarge)
+def file_too_large(e):
+    """Handle file upload size errors."""
+    return render_template('error.html',
+                         error="File too large. Maximum size is 50MB.",
+                         code=413), 413
+
+
+# Public routes
+@app.route('/')
+def index():
+    """Home page - redirect to all songs."""
+    return redirect(url_for('playlist', identifier='all'))
+
+
+@app.route('/music/<identifier>')
+def song(identifier):
+    """Display a single song player page."""
+    song = Song.get_by_identifier(identifier)
+    if not song:
+        abort(404, description=f"Song '{identifier}' not found")
+
+    # Track listen
+    Song.increment_listen_count(song['id'])
+
+    # Get rating stats
+    rating_stats = Rating.get_song_stats(song['id'])
+    user_rating = Rating.get_user_rating(song['id'], request.remote_addr)
+
+    return render_template('song.html',
+                         song=song,
+                         avg_rating=rating_stats['avg_rating'] if rating_stats else None,
+                         rating_count=rating_stats['rating_count'] if rating_stats else 0,
+                         user_rating=user_rating['rating'] if user_rating else None)
+
+
+@app.route('/music/playlist/<identifier>')
+def playlist(identifier):
+    """Display a playlist player page."""
+    playlist = Playlist.get_by_identifier(identifier)
+    if not playlist:
+        abort(404, description=f"Playlist '{identifier}' not found")
+
+    # Get songs in playlist
+    songs = Playlist.get_songs(playlist['id'])
+
+    # If this is the 'all' playlist, get all songs
+    if identifier == 'all':
+        songs = Song.get_all(order_by='title')
+
+    return render_template('playlist.html', playlist=playlist, songs=songs)
+
+
+@app.route('/download/song/<identifier>')
+def download_song(identifier):
+    """Download a single MP3 file."""
+    song = Song.get_by_identifier(identifier)
+    if not song:
+        abort(404, description=f"Song '{identifier}' not found")
+
+    file_path = os.path.join(config.UPLOAD_FOLDER, song['filename'])
+    if not os.path.exists(file_path):
+        abort(404, description="File not found on server")
+
+    # Track download
+    Song.increment_download_count(song['id'])
+
+    # Use original filename or song title
+    download_name = f"{song['title']}.mp3" if song['title'] else song['filename']
+
+    return send_file(file_path, as_attachment=True, download_name=download_name)
+
+
+@app.route('/download/playlist/<identifier>')
+def download_playlist(identifier):
+    """Download all songs in a playlist as a ZIP file."""
+    playlist = Playlist.get_by_identifier(identifier)
+    if not playlist:
+        abort(404, description=f"Playlist '{identifier}' not found")
+
+    # Get songs
+    if identifier == 'all':
+        songs = Song.get_all(order_by='title')
+    else:
+        songs = Playlist.get_songs(playlist['id'])
+
+    if not songs:
+        abort(404, description="No songs in playlist")
+
+    # Create ZIP file in memory
+    memory_file = BytesIO()
+    with zipfile.ZipFile(memory_file, 'w', zipfile.ZIP_DEFLATED) as zf:
+        for song in songs:
+            file_path = os.path.join(config.UPLOAD_FOLDER, song['filename'])
+            if os.path.exists(file_path):
+                # Use song title for filename in ZIP
+                zip_filename = f"{song['title']}.mp3" if song['title'] else song['filename']
+                zf.write(file_path, zip_filename)
+
+    memory_file.seek(0)
+    zip_name = f"{playlist['name']}.zip"
+
+    return send_file(
+        memory_file,
+        mimetype='application/zip',
+        as_attachment=True,
+        download_name=zip_name
+    )
+
+
+# Admin routes (IP-restricted)
+@app.route('/admin')
+@require_admin_ip
+def admin():
+    """Admin dashboard."""
+    songs = Song.get_all()
+    playlists = Playlist.get_all()
+    return render_template('admin.html', songs=songs, playlists=playlists)
+
+
+@app.route('/admin/upload', methods=['GET', 'POST'])
+@require_admin_ip
+def upload():
+    """Upload a new song."""
+    if request.method == 'GET':
+        playlists = Playlist.get_all()
+        return render_template('upload.html', playlists=playlists)
+
+    # Handle POST - file upload
+    if 'file' not in request.files:
+        return jsonify({'error': 'No file provided'}), 400
+
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({'error': 'No file selected'}), 400
+
+    if not allowed_file(file.filename):
+        return jsonify({'error': 'Invalid file type. Only MP3 files allowed.'}), 400
+
+    # Save file
+    filename, filepath = save_uploaded_file(file, config.UPLOAD_FOLDER)
+    if not filename:
+        return jsonify({'error': 'Error saving file'}), 500
+
+    # Extract metadata from MP3
+    mp3_metadata = extract_mp3_metadata(filepath)
+
+    # Get form data
+    title = request.form.get('title', mp3_metadata.get('title') or file.filename.rsplit('.', 1)[0])
+    artist = request.form.get('artist', mp3_metadata.get('artist'))
+    album = request.form.get('album', mp3_metadata.get('album'))
+    description = request.form.get('description')
+    lyrics = request.form.get('lyrics')
+    genre = request.form.get('genre')
+    tags = request.form.get('tags')
+
+    # Generate identifier
+    identifier = request.form.get('identifier')
+    if not identifier:
+        identifier = generate_identifier(title)
+
+    # Create song record
+    try:
+        song = Song.create(
+            identifier=identifier,
+            title=title,
+            artist=artist,
+            album=album,
+            description=description,
+            lyrics=lyrics,
+            genre=genre,
+            tags=tags,
+            filename=filename,
+            duration=mp3_metadata.get('duration'),
+            file_size=mp3_metadata.get('file_size')
+        )
+
+        # Add to 'all' playlist
+        all_playlist = Playlist.get_by_identifier('all')
+        if all_playlist:
+            Playlist.add_song(all_playlist['id'], song['id'])
+
+        # Add to selected playlists
+        playlist_ids = request.form.getlist('playlists[]')
+        for playlist_id in playlist_ids:
+            if playlist_id:
+                Playlist.add_song(int(playlist_id), song['id'])
+
+        return jsonify({
+            'success': True,
+            'song': dict(song),
+            'url': url_for('song', identifier=song['identifier'])
+        })
+
+    except Exception as e:
+        # Clean up file on error
+        if os.path.exists(filepath):
+            os.remove(filepath)
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/admin/playlists/create', methods=['POST'])
+@require_admin_ip
+def create_playlist():
+    """Create a new playlist."""
+    data = request.get_json()
+
+    name = data.get('name')
+    if not name:
+        return jsonify({'error': 'Playlist name required'}), 400
+
+    identifier = data.get('identifier', generate_identifier(name))
+    description = data.get('description')
+    sort_order = data.get('sort_order', 'manual')
+
+    try:
+        playlist = Playlist.create(
+            identifier=identifier,
+            name=name,
+            description=description,
+            sort_order=sort_order
+        )
+        return jsonify({'success': True, 'playlist': dict(playlist)})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/admin/playlists/<int:playlist_id>/add_song', methods=['POST'])
+@require_admin_ip
+def add_song_to_playlist(playlist_id):
+    """Add a song to a playlist."""
+    data = request.get_json()
+    song_id = data.get('song_id')
+
+    if not song_id:
+        return jsonify({'error': 'Song ID required'}), 400
+
+    try:
+        Playlist.add_song(playlist_id, song_id)
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/admin/playlists/<int:playlist_id>/remove_song', methods=['POST'])
+@require_admin_ip
+def remove_song_from_playlist(playlist_id):
+    """Remove a song from a playlist."""
+    data = request.get_json()
+    song_id = data.get('song_id')
+
+    if not song_id:
+        return jsonify({'error': 'Song ID required'}), 400
+
+    try:
+        Playlist.remove_song(playlist_id, song_id)
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/admin/playlists/<int:playlist_id>/reorder', methods=['POST'])
+@require_admin_ip
+def reorder_playlist(playlist_id):
+    """Reorder songs in a playlist."""
+    data = request.get_json()
+    song_order = data.get('song_order')  # List of song IDs in new order
+
+    if not song_order:
+        return jsonify({'error': 'Song order required'}), 400
+
+    try:
+        # Convert to (song_id, position) tuples
+        positions = [(song_id, idx + 1) for idx, song_id in enumerate(song_order)]
+        Playlist.reorder_songs(playlist_id, positions)
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/admin/playlists/<int:playlist_id>', methods=['DELETE'])
+@require_admin_ip
+def delete_playlist(playlist_id):
+    """Delete a playlist."""
+    try:
+        Playlist.delete(playlist_id)
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/admin/songs/<int:song_id>', methods=['DELETE'])
+@require_admin_ip
+def delete_song(song_id):
+    """Delete a song."""
+    song = Song.get_by_id(song_id)
+    if not song:
+        return jsonify({'error': 'Song not found'}), 404
+
+    try:
+        # Delete file
+        file_path = os.path.join(config.UPLOAD_FOLDER, song['filename'])
+        if os.path.exists(file_path):
+            os.remove(file_path)
+
+        # Delete database record
+        Song.delete(song_id)
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+# API routes for AJAX requests
+@app.route('/api/songs')
+def api_songs():
+    """Get all songs as JSON."""
+    songs = Song.get_all()
+    return jsonify([dict(song) for song in songs])
+
+
+@app.route('/api/playlists')
+def api_playlists():
+    """Get all playlists as JSON."""
+    playlists = Playlist.get_all()
+    return jsonify([dict(playlist) for playlist in playlists])
+
+
+@app.route('/api/playlists/<identifier>/songs')
+def api_playlist_songs(identifier):
+    """Get songs in a playlist as JSON."""
+    playlist = Playlist.get_by_identifier(identifier)
+    if not playlist:
+        return jsonify({'error': 'Playlist not found'}), 404
+
+    if identifier == 'all':
+        songs = Song.get_all(order_by='title')
+    else:
+        songs = Playlist.get_songs(playlist['id'])
+
+    return jsonify([dict(song) for song in songs])
+
+
+@app.route('/api/songs/<int:song_id>/rate', methods=['POST'])
+def rate_song(song_id):
+    """Submit a rating for a song."""
+    data = request.get_json()
+    rating_value = data.get('rating')
+
+    if not rating_value or not isinstance(rating_value, int) or rating_value < 1 or rating_value > 10:
+        return jsonify({'error': 'Rating must be an integer between 1 and 10'}), 400
+
+    try:
+        Rating.submit_rating(song_id, request.remote_addr, rating_value)
+
+        # Get updated stats
+        stats = Rating.get_song_stats(song_id)
+
+        return jsonify({
+            'success': True,
+            'avg_rating': float(stats['avg_rating']) if stats['avg_rating'] else None,
+            'rating_count': stats['rating_count']
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+if __name__ == '__main__':
+    app.run(debug=True, host='0.0.0.0', port=5000)

@@ -1,0 +1,221 @@
+{% extends "base.html" %}
+
+{% block title %}Admin Dashboard - HastingTX Music{% endblock %}
+
+{% block nav_extra %}
+<li><a href="{{ url_for('upload') }}">Upload Song</a></li>
+{% endblock %}
+
+{% block content %}
+<div class="admin-page">
+    <h1>Admin Dashboard</h1>
+
+    <div class="admin-stats">
+        <div class="stat-card">
+            <h3>{{ songs|length }}</h3>
+            <p>Total Songs</p>
+        </div>
+        <div class="stat-card">
+            <h3>{{ playlists|length }}</h3>
+            <p>Playlists</p>
+        </div>
+    </div>
+
+    <div class="admin-section">
+        <div class="section-header">
+            <h2>Songs</h2>
+            <a href="{{ url_for('upload') }}" class="btn btn-primary">Upload New Song</a>
+        </div>
+
+        {% if songs %}
+        <table class="admin-table">
+            <thead>
+                <tr>
+                    <th>Title</th>
+                    <th>Artist</th>
+                    <th>Listens</th>
+                    <th>Downloads</th>
+                    <th>Uploaded</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for song in songs %}
+                <tr>
+                    <td>
+                        <a href="{{ url_for('song', identifier=song.identifier) }}">
+                            {{ song.title }}
+                        </a>
+                    </td>
+                    <td>{{ song.artist or '-' }}</td>
+                    <td>{{ song.listen_count or 0 }}</td>
+                    <td>{{ song.download_count or 0 }}</td>
+                    <td>{{ song.upload_date.strftime('%Y-%m-%d') if song.upload_date else '-' }}</td>
+                    <td>
+                        <a href="{{ url_for('song', identifier=song.identifier) }}" class="btn-small">View</a>
+                        <button class="btn-small btn-danger" onclick="deleteSong({{ song.id }}, '{{ song.title }}')">Delete</button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p>No songs uploaded yet.</p>
+        {% endif %}
+    </div>
+
+    <div class="admin-section">
+        <div class="section-header">
+            <h2>Playlists</h2>
+            <button class="btn btn-primary" onclick="showCreatePlaylistForm()">Create Playlist</button>
+        </div>
+
+        <div id="create-playlist-form" class="playlist-form" style="display: none;">
+            <h3>Create New Playlist</h3>
+            <form onsubmit="createPlaylist(event)">
+                <div class="form-group">
+                    <label for="playlist-name">Name *</label>
+                    <input type="text" id="playlist-name" required>
+                </div>
+                <div class="form-group">
+                    <label for="playlist-description">Description</label>
+                    <textarea id="playlist-description" rows="3"></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="playlist-sort">Default Sort Order</label>
+                    <select id="playlist-sort">
+                        <option value="manual">Manual</option>
+                        <option value="title">Title</option>
+                        <option value="album">Album</option>
+                    </select>
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">Create</button>
+                    <button type="button" class="btn btn-secondary" onclick="hideCreatePlaylistForm()">Cancel</button>
+                </div>
+            </form>
+        </div>
+
+        {% if playlists %}
+        <table class="admin-table">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Songs</th>
+                    <th>Sort Order</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for playlist in playlists %}
+                <tr>
+                    <td>
+                        <a href="{{ url_for('playlist', identifier=playlist.identifier) }}">
+                            {{ playlist.name }}
+                        </a>
+                    </td>
+                    <td>-</td>
+                    <td>{{ playlist.sort_order }}</td>
+                    <td>
+                        <a href="{{ url_for('playlist', identifier=playlist.identifier) }}" class="btn-small">View</a>
+                        {% if playlist.identifier != 'all' %}
+                        <button class="btn-small btn-danger" onclick="deletePlaylist({{ playlist.id }}, '{{ playlist.name }}')">Delete</button>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function showCreatePlaylistForm() {
+    document.getElementById('create-playlist-form').style.display = 'block';
+}
+
+function hideCreatePlaylistForm() {
+    document.getElementById('create-playlist-form').style.display = 'none';
+}
+
+async function createPlaylist(event) {
+    event.preventDefault();
+
+    const name = document.getElementById('playlist-name').value;
+    const description = document.getElementById('playlist-description').value;
+    const sortOrder = document.getElementById('playlist-sort').value;
+
+    try {
+        const response = await fetch('/admin/playlists/create', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                name: name,
+                description: description,
+                sort_order: sortOrder
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            alert('Playlist created successfully!');
+            location.reload();
+        } else {
+            alert('Error: ' + data.error);
+        }
+    } catch (error) {
+        alert('Error creating playlist: ' + error.message);
+    }
+}
+
+async function deleteSong(songId, title) {
+    if (!confirm(`Are you sure you want to delete "${title}"? This action cannot be undone.`)) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/admin/songs/${songId}`, {
+            method: 'DELETE'
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            alert('Song deleted successfully');
+            location.reload();
+        } else {
+            alert('Error: ' + data.error);
+        }
+    } catch (error) {
+        alert('Error deleting song: ' + error.message);
+    }
+}
+
+async function deletePlaylist(playlistId, name) {
+    if (!confirm(`Are you sure you want to delete playlist "${name}"?`)) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/admin/playlists/${playlistId}`, {
+            method: 'DELETE'
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            alert('Playlist deleted successfully');
+            location.reload();
+        } else {
+            alert('Error: ' + data.error);
+        }
+    } catch (error) {
+        alert('Error deleting playlist: ' + error.message);
+    }
+}
+</script>
+{% endblock %}

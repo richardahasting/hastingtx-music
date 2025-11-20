@@ -1,0 +1,117 @@
+# Nginx configuration for HastingTX Music
+# To install: sudo cp hastingtx-music.nginx /etc/nginx/sites-available/hastingtx-music
+# Then: sudo ln -s /etc/nginx/sites-available/hastingtx-music /etc/nginx/sites-enabled/
+
+server {
+    listen 80;
+    server_name hastingtx.org www.hastingtx.org;
+
+    # Root location for main site (if you have other content)
+    # This config handles /music/* URLs
+
+    # Limit file uploads to 50MB
+    client_max_body_size 50M;
+
+    # Logging
+    access_log /var/log/nginx/hastingtx-music-access.log;
+    error_log /var/log/nginx/hastingtx-music-error.log;
+
+    # Serve static files directly (CSS, JS)
+    location /static/ {
+        alias /home/richard/projects/hastingtx/music/static/;
+        expires 30d;
+        add_header Cache-Control "public, immutable";
+
+        # MIME types
+        types {
+            text/css css;
+            application/javascript js;
+            audio/mpeg mp3;
+            image/jpeg jpg jpeg;
+            image/png png;
+            image/gif gif;
+        }
+    }
+
+    # Serve MP3 files with proper headers for streaming
+    location /static/uploads/ {
+        alias /home/richard/projects/hastingtx/music/static/uploads/;
+
+        # Enable range requests for audio streaming
+        add_header Accept-Ranges bytes;
+
+        # Cache for a shorter time (files can change)
+        expires 7d;
+        add_header Cache-Control "public";
+    }
+
+    # Music application routes
+    location /music/ {
+        proxy_pass http://127.0.0.1:5000/music/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # Timeouts for file uploads
+        proxy_read_timeout 300;
+        proxy_connect_timeout 300;
+        proxy_send_timeout 300;
+    }
+
+    # Admin area with stricter rules and longer timeouts
+    location /admin {
+        proxy_pass http://127.0.0.1:5000/admin;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # Longer timeout for uploads
+        proxy_read_timeout 600;
+        proxy_connect_timeout 600;
+        proxy_send_timeout 600;
+    }
+
+    # API routes
+    location /api/ {
+        proxy_pass http://127.0.0.1:5000/api/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    # Download routes
+    location /download/ {
+        proxy_pass http://127.0.0.1:5000/download/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        proxy_read_timeout 600;
+    }
+
+    # Root redirect to all songs
+    location = / {
+        proxy_pass http://127.0.0.1:5000/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    # Block access to sensitive files
+    location ~ /\. {
+        deny all;
+        access_log off;
+        log_not_found off;
+    }
+
+    location ~ \.(env|py|pyc|sql)$ {
+        deny all;
+        access_log off;
+        log_not_found off;
+    }
+}

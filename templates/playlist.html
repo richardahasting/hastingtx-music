@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+
+{% block title %}{{ playlist.name }} - HastingTX Music{% endblock %}
+
+{% block content %}
+<div class="playlist-page">
+    <div class="playlist-header">
+        <h1>{{ playlist.name }}</h1>
+        {% if playlist.description %}
+        <p class="playlist-description">{{ playlist.description }}</p>
+        {% endif %}
+        <p class="song-count">{{ songs|length }} song{% if songs|length != 1 %}s{% endif %}</p>
+    </div>
+
+    {% if songs %}
+    <div class="playlist-actions">
+        <a href="{{ url_for('download_playlist', identifier=playlist.identifier) }}" class="btn btn-primary">
+            Download All as ZIP
+        </a>
+    </div>
+
+    <div class="song-list">
+        <table class="songs-table">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Title</th>
+                    <th>Artist</th>
+                    <th>Album</th>
+                    <th>Duration</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for song in songs %}
+                <tr class="song-row" data-song-id="{{ song.id }}">
+                    <td class="song-number">{{ loop.index }}</td>
+                    <td class="song-title">
+                        <a href="{{ url_for('song', identifier=song.identifier) }}">
+                            {{ song.title }}
+                        </a>
+                    </td>
+                    <td class="song-artist">{{ song.artist or '-' }}</td>
+                    <td class="song-album">{{ song.album or '-' }}</td>
+                    <td class="song-duration">{{ song.duration|duration }}</td>
+                    <td class="song-actions">
+                        <a href="{{ url_for('song', identifier=song.identifier) }}" class="btn-small" title="Play">
+                            ▶
+                        </a>
+                        <a href="{{ url_for('download_song', identifier=song.identifier) }}" class="btn-small" title="Download">
+                            ⬇
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="empty-playlist">
+        <p>No songs in this playlist yet.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

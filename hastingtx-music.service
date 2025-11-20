@@ -1,0 +1,23 @@
+[Unit]
+Description=HastingTX Music Flask Application
+After=network.target postgresql.service
+
+[Service]
+Type=notify
+User=richard
+Group=richard
+WorkingDirectory=/home/richard/projects/hastingtx/music
+Environment="PATH=/home/richard/projects/hastingtx/music/venv/bin"
+ExecStart=/home/richard/projects/hastingtx/music/venv/bin/gunicorn \
+    --workers 4 \
+    --bind 127.0.0.1:5000 \
+    --timeout 300 \
+    --access-logfile /var/log/hastingtx-music/access.log \
+    --error-logfile /var/log/hastingtx-music/error.log \
+    --log-level info \
+    app:app
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,675 @@
+/* HastingTX Music - Stylesheet */
+
+/* Reset and Base Styles */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    line-height: 1.6;
+    color: #333;
+    background-color: #f5f5f5;
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 20px;
+}
+
+/* Header and Navigation */
+header {
+    background-color: #2c3e50;
+    color: white;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+.navbar {
+    padding: 1rem 0;
+}
+
+.navbar .container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.logo a {
+    color: white;
+    text-decoration: none;
+    font-size: 1.5rem;
+}
+
+.nav-links {
+    display: flex;
+    list-style: none;
+    gap: 2rem;
+}
+
+.nav-links a {
+    color: white;
+    text-decoration: none;
+    transition: opacity 0.2s;
+}
+
+.nav-links a:hover {
+    opacity: 0.8;
+}
+
+/* Main Content */
+main {
+    min-height: calc(100vh - 200px);
+    padding: 2rem 0;
+}
+
+/* Footer */
+footer {
+    background-color: #34495e;
+    color: white;
+    padding: 2rem 0;
+    text-align: center;
+    margin-top: 4rem;
+}
+
+/* Buttons */
+.btn {
+    display: inline-block;
+    padding: 0.75rem 1.5rem;
+    background-color: #3498db;
+    color: white;
+    text-decoration: none;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 1rem;
+    transition: background-color 0.2s;
+}
+
+.btn:hover {
+    background-color: #2980b9;
+}
+
+.btn-primary {
+    background-color: #3498db;
+}
+
+.btn-primary:hover {
+    background-color: #2980b9;
+}
+
+.btn-secondary {
+    background-color: #95a5a6;
+}
+
+.btn-secondary:hover {
+    background-color: #7f8c8d;
+}
+
+.btn-danger {
+    background-color: #e74c3c;
+}
+
+.btn-danger:hover {
+    background-color: #c0392b;
+}
+
+.btn-small {
+    padding: 0.4rem 0.8rem;
+    font-size: 0.9rem;
+    text-decoration: none;
+    color: white;
+    background-color: #3498db;
+    border-radius: 3px;
+    display: inline-block;
+    margin-right: 0.5rem;
+}
+
+.btn-small:hover {
+    background-color: #2980b9;
+}
+
+/* Song Player Page */
+.song-player {
+    background: white;
+    border-radius: 8px;
+    padding: 2rem;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+.song-header {
+    text-align: center;
+    margin-bottom: 2rem;
+}
+
+.song-header h1 {
+    font-size: 2.5rem;
+    color: #2c3e50;
+    margin-bottom: 0.5rem;
+}
+
+.song-header .artist {
+    font-size: 1.3rem;
+    color: #7f8c8d;
+}
+
+.song-header .album {
+    font-size: 1.1rem;
+    color: #95a5a6;
+}
+
+.player-section {
+    margin: 2rem 0;
+    text-align: center;
+}
+
+#audio-player {
+    width: 100%;
+    max-width: 600px;
+}
+
+.song-actions {
+    text-align: center;
+    margin: 2rem 0;
+}
+
+.song-stats {
+    display: flex;
+    justify-content: center;
+    gap: 2rem;
+    margin: 2rem 0;
+    padding: 1rem;
+    background-color: #ecf0f1;
+    border-radius: 4px;
+}
+
+.song-stats .stat {
+    font-size: 1rem;
+}
+
+/* Rating Section */
+.rating-section {
+    margin: 3rem 0;
+    padding: 2rem;
+    background-color: #f8f9fa;
+    border-radius: 8px;
+}
+
+.rating-section h3 {
+    margin-bottom: 1rem;
+    color: #2c3e50;
+}
+
+.average-rating {
+    text-align: center;
+    margin: 1.5rem 0;
+}
+
+.rating-display {
+    font-size: 2.5rem;
+    color: #f39c12;
+    font-weight: bold;
+}
+
+.rating-value {
+    font-size: 3.5rem;
+}
+
+.rating-count {
+    color: #7f8c8d;
+    margin-top: 0.5rem;
+}
+
+.rating-input {
+    text-align: center;
+    margin-top: 1.5rem;
+}
+
+.rating-stars {
+    display: flex;
+    justify-content: center;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.star-btn {
+    width: 50px;
+    height: 50px;
+    border: 2px solid #3498db;
+    background-color: white;
+    color: #3498db;
+    font-size: 1.2rem;
+    font-weight: bold;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.star-btn:hover {
+    background-color: #3498db;
+    color: white;
+    transform: scale(1.1);
+}
+
+.star-btn.active {
+    background-color: #f39c12;
+    border-color: #f39c12;
+    color: white;
+}
+
+.user-rating-text {
+    color: #7f8c8d;
+    font-style: italic;
+}
+
+/* Song Metadata Sections */
+.song-description,
+.song-lyrics,
+.song-metadata {
+    margin: 2rem 0;
+    padding: 1.5rem;
+    background-color: #ecf0f1;
+    border-radius: 4px;
+}
+
+.song-description h3,
+.song-lyrics h3,
+.song-metadata h3 {
+    margin-bottom: 1rem;
+    color: #2c3e50;
+}
+
+.song-lyrics pre {
+    white-space: pre-wrap;
+    font-family: inherit;
+    line-height: 1.8;
+}
+
+.back-link {
+    margin-top: 2rem;
+}
+
+.back-link a {
+    color: #3498db;
+    text-decoration: none;
+}
+
+.back-link a:hover {
+    text-decoration: underline;
+}
+
+/* Playlist Page */
+.playlist-page {
+    background: white;
+    border-radius: 8px;
+    padding: 2rem;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+.playlist-header {
+    margin-bottom: 2rem;
+}
+
+.playlist-header h1 {
+    font-size: 2.5rem;
+    color: #2c3e50;
+}
+
+.playlist-description {
+    color: #7f8c8d;
+    margin: 1rem 0;
+}
+
+.song-count {
+    color: #95a5a6;
+}
+
+.playlist-actions {
+    margin: 1.5rem 0;
+}
+
+/* Song Table */
+.songs-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 2rem 0;
+}
+
+.songs-table thead {
+    background-color: #34495e;
+    color: white;
+}
+
+.songs-table th,
+.songs-table td {
+    padding: 1rem;
+    text-align: left;
+}
+
+.songs-table tbody tr {
+    border-bottom: 1px solid #ecf0f1;
+}
+
+.songs-table tbody tr:hover {
+    background-color: #f8f9fa;
+}
+
+.songs-table a {
+    color: #3498db;
+    text-decoration: none;
+}
+
+.songs-table a:hover {
+    text-decoration: underline;
+}
+
+.song-number {
+    font-weight: bold;
+    color: #95a5a6;
+}
+
+/* Upload Page */
+.upload-page {
+    background: white;
+    border-radius: 8px;
+    padding: 2rem;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+.file-drop-zone {
+    border: 3px dashed #3498db;
+    border-radius: 8px;
+    padding: 3rem;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin: 1rem 0;
+}
+
+.file-drop-zone:hover,
+.file-drop-zone.dragover {
+    background-color: #ecf0f1;
+    border-color: #2980b9;
+}
+
+.file-drop-zone input[type="file"] {
+    display: none;
+}
+
+.file-info {
+    padding: 1rem;
+    background-color: #e8f5e9;
+    border-radius: 4px;
+    margin: 1rem 0;
+}
+
+.upload-progress {
+    margin: 2rem 0;
+}
+
+.progress-bar {
+    width: 100%;
+    height: 30px;
+    background-color: #ecf0f1;
+    border-radius: 15px;
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    background-color: #3498db;
+    transition: width 0.3s;
+}
+
+.form-section {
+    margin: 2rem 0;
+    padding: 1.5rem;
+    background-color: #f8f9fa;
+    border-radius: 8px;
+}
+
+.form-section h3 {
+    margin-bottom: 1rem;
+    color: #2c3e50;
+}
+
+.form-group {
+    margin-bottom: 1.5rem;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+    color: #2c3e50;
+}
+
+.form-group input[type="text"],
+.form-group textarea,
+.form-group select {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid #bdc3c7;
+    border-radius: 4px;
+    font-size: 1rem;
+    font-family: inherit;
+}
+
+.form-group input:focus,
+.form-group textarea:focus,
+.form-group select:focus {
+    outline: none;
+    border-color: #3498db;
+}
+
+.form-group small {
+    display: block;
+    margin-top: 0.5rem;
+    color: #7f8c8d;
+    font-size: 0.9rem;
+}
+
+.playlist-checkboxes {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+}
+
+.checkbox-label input[type="checkbox"] {
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+}
+
+.form-actions {
+    margin-top: 2rem;
+    display: flex;
+    gap: 1rem;
+}
+
+.success-message,
+.error-message {
+    text-align: center;
+    padding: 2rem;
+}
+
+.success-message h2 {
+    color: #27ae60;
+}
+
+.error-message h2 {
+    color: #e74c3c;
+}
+
+.success-actions {
+    margin-top: 2rem;
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+}
+
+/* Admin Page */
+.admin-page h1 {
+    color: #2c3e50;
+    margin-bottom: 2rem;
+}
+
+.admin-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 3rem;
+}
+
+.stat-card {
+    background: white;
+    padding: 2rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    text-align: center;
+}
+
+.stat-card h3 {
+    font-size: 3rem;
+    color: #3498db;
+    margin-bottom: 0.5rem;
+}
+
+.stat-card p {
+    color: #7f8c8d;
+    font-size: 1.1rem;
+}
+
+.admin-section {
+    background: white;
+    padding: 2rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    margin-bottom: 2rem;
+}
+
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+}
+
+.section-header h2 {
+    color: #2c3e50;
+}
+
+.admin-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.admin-table thead {
+    background-color: #34495e;
+    color: white;
+}
+
+.admin-table th,
+.admin-table td {
+    padding: 1rem;
+    text-align: left;
+}
+
+.admin-table tbody tr {
+    border-bottom: 1px solid #ecf0f1;
+}
+
+.admin-table tbody tr:hover {
+    background-color: #f8f9fa;
+}
+
+.playlist-form {
+    background-color: #f8f9fa;
+    padding: 1.5rem;
+    border-radius: 8px;
+    margin-bottom: 2rem;
+}
+
+/* Error Page */
+.error-page {
+    text-align: center;
+    padding: 4rem 2rem;
+}
+
+.error-page h1 {
+    font-size: 4rem;
+    color: #e74c3c;
+    margin-bottom: 1rem;
+}
+
+.error-message {
+    font-size: 1.3rem;
+    color: #7f8c8d;
+    margin-bottom: 2rem;
+}
+
+.error-actions {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .navbar .container {
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .nav-links {
+        flex-direction: column;
+        gap: 0.5rem;
+        text-align: center;
+    }
+
+    .song-header h1 {
+        font-size: 1.8rem;
+    }
+
+    .rating-stars {
+        flex-wrap: wrap;
+    }
+
+    .star-btn {
+        width: 40px;
+        height: 40px;
+        font-size: 1rem;
+    }
+
+    .songs-table {
+        font-size: 0.9rem;
+    }
+
+    .songs-table th,
+    .songs-table td {
+        padding: 0.5rem;
+    }
+
+    .admin-stats {
+        grid-template-columns: 1fr;
+    }
+
+    .section-header {
+        flex-direction: column;
+        gap: 1rem;
+        align-items: stretch;
+    }
+
+    .form-actions {
+        flex-direction: column;
+    }
+}
