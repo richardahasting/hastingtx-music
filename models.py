@@ -8,13 +8,16 @@ class Song:
     @staticmethod
     def create(identifier, title, artist=None, album=None, description=None,
                lyrics=None, genre=None, tags=None, filename=None,
-               duration=None, file_size=None):
-        """Create a new song record."""
+               duration=None, file_size=None, cover_art=None, composer=None,
+               lyricist=None, recording_date=None):
+        """Create a new song record with comprehensive metadata."""
         query = """
             INSERT INTO songs (identifier, title, artist, album, description,
-                             lyrics, genre, tags, filename, duration, file_size)
+                             lyrics, genre, tags, filename, duration, file_size,
+                             cover_art, composer, lyricist, recording_date)
             VALUES (%(identifier)s, %(title)s, %(artist)s, %(album)s, %(description)s,
-                    %(lyrics)s, %(genre)s, %(tags)s, %(filename)s, %(duration)s, %(file_size)s)
+                    %(lyrics)s, %(genre)s, %(tags)s, %(filename)s, %(duration)s, %(file_size)s,
+                    %(cover_art)s, %(composer)s, %(lyricist)s, %(recording_date)s)
             RETURNING *
         """
         params = {
@@ -28,7 +31,11 @@ class Song:
             'tags': tags,
             'filename': filename,
             'duration': duration,
-            'file_size': file_size
+            'file_size': file_size,
+            'cover_art': cover_art,
+            'composer': composer,
+            'lyricist': lyricist,
+            'recording_date': recording_date
         }
         return db.insert(query, params)
 

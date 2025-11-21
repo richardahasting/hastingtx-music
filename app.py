@@ -5,11 +5,13 @@ from io import BytesIO
 from functools import wraps
 from flask import Flask, render_template, request, jsonify, send_file, redirect, url_for, abort
 from werkzeug.exceptions import RequestEntityTooLarge
+from werkzeug.utils import secure_filename
+from PIL import Image
 
 from config import config
 from models import Song, Playlist, Rating
 from utils import (
-    allowed_file, generate_identifier, extract_mp3_metadata,
+    allowed_file, generate_identifier, extract_mp3_metadata, write_mp3_metadata,
     save_uploaded_file, is_ip_allowed, format_duration, format_file_size
 )
 
@@ -219,17 +221,35 @@ def upload():
     if not filename:
         return jsonify({'error': 'Error saving file'}), 500
 
-    # Extract metadata from MP3
-    mp3_metadata = extract_mp3_metadata(filepath)
+    # Extract comprehensive metadata from MP3 (including cover art)
+    cover_art_dir = os.path.join(config.UPLOAD_FOLDER, 'covers')
+    mp3_metadata = extract_mp3_metadata(filepath, save_cover_to=cover_art_dir)
 
-    # Get form data
-    title = request.form.get('title', mp3_metadata.get('title') or file.filename.rsplit('.', 1)[0])
-    artist = request.form.get('artist', mp3_metadata.get('artist'))
-    album = request.form.get('album', mp3_metadata.get('album'))
-    description = request.form.get('description')
-    lyrics = request.form.get('lyrics')
-    genre = request.form.get('genre')
+    # Get form data, preferring form input over extracted metadata
+    title = request.form.get('title') or mp3_metadata.get('title') or file.filename.rsplit('.', 1)[0]
+    artist = request.form.get('artist') or mp3_metadata.get('artist')
+    album = request.form.get('album') or mp3_metadata.get('album')
+    description = request.form.get('description') or mp3_metadata.get('description')
+    lyrics = request.form.get('lyrics') or mp3_metadata.get('lyrics')
+    genre = request.form.get('genre') or mp3_metadata.get('genre')
     tags = request.form.get('tags')
+    composer = request.form.get('composer') or mp3_metadata.get('composer') or 'Richard & Claude'
+    lyricist = request.form.get('lyricist') or mp3_metadata.get('lyricist') or 'Richard & Claude'
+    recording_date = request.form.get('recording_date') or mp3_metadata.get('recording_date')
+
+    # Handle cover art upload if provided
+    cover_art = mp3_metadata.get('cover_art')  # From MP3 file
+    if 'cover_art' in request.files and request.files['cover_art'].filename:
+        cover_file = request.files['cover_art']
+        if cover_file.filename:
+            cover_filename = secure_filename(f"{os.path.splitext(filename)[0]}_cover.jpg")
+            cover_path = os.path.join(cover_art_dir, cover_filename)
+            # Save and resize if needed
+            img = Image.open(cover_file)
+            if img.width > 500 or img.height > 500:
+                img.thumbnail((500, 500), Image.Resampling.LANCZOS)
+            img.save(cover_path, 'JPEG', quality=90)
+            cover_art = cover_filename
 
     # Generate identifier
     identifier = request.form.get('identifier')
@@ -249,8 +269,30 @@ def upload():
             tags=tags,
             filename=filename,
             duration=mp3_metadata.get('duration'),
-            file_size=mp3_metadata.get('file_size')
+            file_size=mp3_metadata.get('file_size'),
+            cover_art=cover_art,
+            composer=composer,
+            lyricist=lyricist,
+            recording_date=recording_date
         )
+
+        # Write comprehensive metadata back to MP3 file
+        song_url = request.url_root.rstrip('/') + url_for('song', identifier=song['identifier'])
+        song_data = {
+            'title': title,
+            'artist': artist,
+            'album': album,
+            'genre': genre,
+            'description': description,
+            'lyrics': lyrics,
+            'composer': composer,
+            'lyricist': lyricist,
+            'recording_date': recording_date
+        }
+        if cover_art:
+            song_data['cover_art_path'] = os.path.join(cover_art_dir, cover_art)
+
+        write_mp3_metadata(filepath, song_data, song_url=song_url)
 
         # Add to 'all' playlist
         all_playlist = Playlist.get_by_identifier('all')
