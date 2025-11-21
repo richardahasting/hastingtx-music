@@ -5,13 +5,33 @@
 {% block content %}
 <div class="song-player">
     <div class="song-header">
-        <h1>{{ song.title }}</h1>
-        {% if song.artist %}
-        <p class="artist">by {{ song.artist }}</p>
+        {% if song.cover_art %}
+        <div class="cover-art">
+            <img src="{{ url_for('static', filename='uploads/covers/' + song.cover_art) }}" alt="{{ song.title }} cover art">
+        </div>
         {% endif %}
-        {% if song.album %}
-        <p class="album">from {{ song.album }}</p>
-        {% endif %}
+        <div class="header-text">
+            <h1>{{ song.title }}</h1>
+            {% if song.artist %}
+            <p class="artist">by {{ song.artist }}</p>
+            {% endif %}
+            {% if song.album %}
+            <p class="album">from {{ song.album }}</p>
+            {% endif %}
+            {% if song.composer or song.lyricist %}
+            <div class="credits">
+                {% if song.composer %}
+                <p class="composer"><strong>Composer:</strong> {{ song.composer }}</p>
+                {% endif %}
+                {% if song.lyricist %}
+                <p class="lyricist"><strong>Lyricist:</strong> {{ song.lyricist }}</p>
+                {% endif %}
+            </div>
+            {% endif %}
+            {% if song.recording_date %}
+            <p class="recording-date"><strong>Recorded:</strong> {{ song.recording_date.strftime('%B %d, %Y') if song.recording_date else '' }}</p>
+            {% endif %}
+        </div>
     </div>
 
     <div class="player-section">

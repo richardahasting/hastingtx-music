@@ -20,6 +20,10 @@ CREATE TABLE songs (
     filename VARCHAR(255) NOT NULL,  -- Actual MP3 filename
     duration INTEGER,  -- Duration in seconds
     file_size BIGINT,  -- File size in bytes
+    cover_art VARCHAR(255),  -- Filename for cover art image in static/uploads/covers/
+    composer VARCHAR(255),  -- Composer/creator (e.g., "Richard & Claude", "SUNO AI")
+    lyricist VARCHAR(255),  -- Lyricist/text writer
+    recording_date DATE,  -- Recording or creation date
     listen_count INTEGER DEFAULT 0,  -- Number of times played
     download_count INTEGER DEFAULT 0,  -- Number of times downloaded
     upload_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

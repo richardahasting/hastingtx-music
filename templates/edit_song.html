@@ -42,6 +42,33 @@
                 </div>
 
                 <div class="form-group">
+                    <label for="composer">Composer</label>
+                    <input type="text" id="composer" name="composer" value="{{ song.composer or '' }}">
+                </div>
+
+                <div class="form-group">
+                    <label for="lyricist">Lyricist</label>
+                    <input type="text" id="lyricist" name="lyricist" value="{{ song.lyricist or '' }}">
+                </div>
+
+                <div class="form-group">
+                    <label for="recording_date">Recording Date</label>
+                    <input type="date" id="recording_date" name="recording_date" value="{{ song.recording_date.strftime('%Y-%m-%d') if song.recording_date else '' }}">
+                </div>
+
+                <div class="form-group">
+                    <label for="cover_art">Cover Art (optional)</label>
+                    {% if song.cover_art %}
+                    <div class="current-cover">
+                        <p><strong>Current:</strong> {{ song.cover_art }}</p>
+                        <img src="{{ url_for('static', filename='uploads/covers/' + song.cover_art) }}" alt="Current cover" style="max-width: 200px; max-height: 200px;">
+                    </div>
+                    {% endif %}
+                    <input type="file" id="cover_art" name="cover_art" accept="image/*">
+                    <small>Upload new cover art to replace existing. Will be resized to 500x500 if larger.</small>
+                </div>
+
+                <div class="form-group">
                     <label for="tags">Tags (comma-separated)</label>
                     <input type="text" id="tags" name="tags" value="{{ song.tags or '' }}" placeholder="rock, upbeat, summer">
                 </div>

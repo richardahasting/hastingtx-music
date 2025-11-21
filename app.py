@@ -351,9 +351,48 @@ def edit_song(song_id):
             update_data['tags'] = request.form.get('tags')
         if request.form.get('identifier'):
             update_data['identifier'] = request.form.get('identifier')
+        if request.form.get('composer'):
+            update_data['composer'] = request.form.get('composer')
+        if request.form.get('lyricist'):
+            update_data['lyricist'] = request.form.get('lyricist')
+        if request.form.get('recording_date'):
+            update_data['recording_date'] = request.form.get('recording_date')
 
-        # Update the song
+        # Handle cover art upload if provided
+        cover_art_dir = os.path.join(config.UPLOAD_FOLDER, 'covers')
+        if 'cover_art' in request.files and request.files['cover_art'].filename:
+            cover_file = request.files['cover_art']
+            if cover_file.filename:
+                cover_filename = secure_filename(f"{os.path.splitext(song['filename'])[0]}_cover.jpg")
+                cover_path = os.path.join(cover_art_dir, cover_filename)
+                # Save and resize if needed
+                img = Image.open(cover_file)
+                if img.width > 500 or img.height > 500:
+                    img.thumbnail((500, 500), Image.Resampling.LANCZOS)
+                img.save(cover_path, 'JPEG', quality=90)
+                update_data['cover_art'] = cover_filename
+
+        # Update the song in database
         updated_song = Song.update(song_id, **update_data)
+
+        # Write comprehensive metadata back to MP3 file
+        filepath = os.path.join(config.UPLOAD_FOLDER, updated_song['filename'])
+        song_url = request.url_root.rstrip('/') + url_for('song', identifier=updated_song['identifier'])
+        song_data = {
+            'title': updated_song.get('title'),
+            'artist': updated_song.get('artist'),
+            'album': updated_song.get('album'),
+            'genre': updated_song.get('genre'),
+            'description': updated_song.get('description'),
+            'lyrics': updated_song.get('lyrics'),
+            'composer': updated_song.get('composer'),
+            'lyricist': updated_song.get('lyricist'),
+            'recording_date': updated_song.get('recording_date')
+        }
+        if updated_song.get('cover_art'):
+            song_data['cover_art_path'] = os.path.join(cover_art_dir, updated_song['cover_art'])
+
+        write_mp3_metadata(filepath, song_data, song_url=song_url)
 
         return jsonify({
             'success': True,

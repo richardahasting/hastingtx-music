@@ -152,8 +152,26 @@ footer {
 }
 
 .song-header {
-    text-align: center;
+    display: flex;
+    gap: 2rem;
     margin-bottom: 2rem;
+    align-items: flex-start;
+}
+
+.song-header .cover-art {
+    flex-shrink: 0;
+}
+
+.song-header .cover-art img {
+    width: 300px;
+    height: 300px;
+    object-fit: cover;
+    border-radius: 8px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+}
+
+.song-header .header-text {
+    flex: 1;
 }
 
 .song-header h1 {
@@ -165,11 +183,41 @@ footer {
 .song-header .artist {
     font-size: 1.3rem;
     color: #7f8c8d;
+    margin-bottom: 0.25rem;
 }
 
 .song-header .album {
     font-size: 1.1rem;
     color: #95a5a6;
+    margin-bottom: 1rem;
+}
+
+.song-header .credits {
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid #ecf0f1;
+}
+
+.song-header .composer,
+.song-header .lyricist,
+.song-header .recording-date {
+    font-size: 0.95rem;
+    color: #7f8c8d;
+    margin: 0.25rem 0;
+}
+
+/* Responsive: stack cover art on smaller screens */
+@media (max-width: 768px) {
+    .song-header {
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+    }
+
+    .song-header .cover-art img {
+        width: 250px;
+        height: 250px;
+    }
 }
 
 .player-section {
