@@ -740,3 +740,141 @@ footer {
         flex-direction: column;
     }
 }
+
+/* Comments Section */
+.comments-section {
+    margin-top: 3rem;
+    padding-top: 2rem;
+    border-top: 2px solid #ecf0f1;
+}
+
+.comments-section h3 {
+    color: #2c3e50;
+    margin-bottom: 1.5rem;
+}
+
+.comment-form-container {
+    background-color: #f8f9fa;
+    padding: 1.5rem;
+    border-radius: 8px;
+    margin-bottom: 2rem;
+}
+
+.comment-form-container .form-group {
+    margin-bottom: 1rem;
+}
+
+.comment-form-container label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+    color: #2c3e50;
+}
+
+.comment-form-container input[type="text"],
+.comment-form-container textarea {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-family: inherit;
+    font-size: 1rem;
+}
+
+.comment-form-container textarea {
+    resize: vertical;
+    min-height: 80px;
+}
+
+.char-count {
+    display: block;
+    margin-top: 0.25rem;
+    color: #7f8c8d;
+    font-size: 0.9rem;
+}
+
+.comments-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.comment {
+    background-color: white;
+    border: 1px solid #ecf0f1;
+    border-radius: 8px;
+    padding: 1.25rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    position: relative;
+}
+
+.comment-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.commenter-name {
+    font-weight: 600;
+    color: #2c3e50;
+}
+
+.comment-date {
+    color: #95a5a6;
+    font-size: 0.9rem;
+}
+
+.btn-delete-comment {
+    margin-left: auto;
+    background-color: #e74c3c;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 28px;
+    height: 28px;
+    font-size: 1.5rem;
+    line-height: 1;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.2s;
+}
+
+.btn-delete-comment:hover {
+    background-color: #c0392b;
+}
+
+.comment-text {
+    color: #34495e;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+
+.no-comments {
+    text-align: center;
+    color: #95a5a6;
+    font-style: italic;
+    padding: 2rem;
+}
+
+.success-message {
+    background-color: #d4edda;
+    border: 1px solid #c3e6cb;
+    color: #155724;
+    padding: 1rem;
+    border-radius: 4px;
+    margin-top: 1rem;
+}
+
+.error-message {
+    background-color: #f8d7da;
+    border: 1px solid #f5c6cb;
+    color: #721c24;
+    padding: 1rem;
+    border-radius: 4px;
+    margin-top: 1rem;
+}

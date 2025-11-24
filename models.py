@@ -304,3 +304,65 @@ class Rating:
             WHERE song_id = %s
         """
         return db.execute_one(query, (song_id,))
+
+
+class Comment:
+    """Comment model and database operations."""
+
+    @staticmethod
+    def create(song_id, comment_text, ip_address, commenter_name=None):
+        """
+        Create a new comment on a song.
+
+        Args:
+            song_id: ID of the song
+            comment_text: The comment text
+            ip_address: IP address of the commenter
+            commenter_name: Optional display name for the commenter
+
+        Returns:
+            Comment record
+        """
+        query = """
+            INSERT INTO comments (song_id, comment_text, ip_address, commenter_name)
+            VALUES (%s, %s, %s, %s)
+            RETURNING *
+        """
+        return db.insert(query, (song_id, comment_text, ip_address, commenter_name))
+
+    @staticmethod
+    def get_by_song(song_id):
+        """
+        Get all comments for a song, ordered by creation date (newest first).
+
+        Args:
+            song_id: ID of the song
+
+        Returns:
+            List of comment records
+        """
+        query = """
+            SELECT * FROM comments
+            WHERE song_id = %s
+            ORDER BY created_at DESC
+        """
+        return db.execute(query, (song_id,))
+
+    @staticmethod
+    def get_by_id(comment_id):
+        """Get a comment by its ID."""
+        query = "SELECT * FROM comments WHERE id = %s"
+        return db.execute_one(query, (comment_id,))
+
+    @staticmethod
+    def delete(comment_id):
+        """Delete a comment."""
+        query = "DELETE FROM comments WHERE id = %s"
+        db.execute(query, (comment_id,), fetch=False)
+
+    @staticmethod
+    def get_count(song_id):
+        """Get the number of comments on a song."""
+        query = "SELECT COUNT(*)::integer as count FROM comments WHERE song_id = %s"
+        result = db.execute_one(query, (song_id,))
+        return result['count'] if result else 0

@@ -9,7 +9,7 @@ from werkzeug.utils import secure_filename
 from PIL import Image
 
 from config import config
-from models import Song, Playlist, Rating
+from models import Song, Playlist, Rating, Comment
 from utils import (
     allowed_file, generate_identifier, extract_mp3_metadata, write_mp3_metadata,
     save_uploaded_file, is_ip_allowed, format_duration, format_file_size
@@ -106,11 +106,17 @@ def song(identifier):
     rating_stats = Rating.get_song_stats(song['id'])
     user_rating = Rating.get_user_rating(song['id'], request.remote_addr)
 
+    # Get comments
+    comments = Comment.get_by_song(song['id'])
+    comment_count = Comment.get_count(song['id'])
+
     return render_template('song.html',
                          song=song,
                          avg_rating=rating_stats['avg_rating'] if rating_stats else None,
                          rating_count=rating_stats['rating_count'] if rating_stats else 0,
-                         user_rating=user_rating['rating'] if user_rating else None)
+                         user_rating=user_rating['rating'] if user_rating else None,
+                         comments=comments,
+                         comment_count=comment_count)
 
 
 @app.route('/music/playlist/<identifier>')
@@ -565,6 +571,61 @@ def rate_song(song_id):
             'avg_rating': float(stats['avg_rating']) if stats['avg_rating'] else None,
             'rating_count': stats['rating_count']
         })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/songs/<int:song_id>/comments', methods=['POST'])
+def submit_comment(song_id):
+    """Submit a comment on a song."""
+    data = request.get_json()
+    comment_text = data.get('comment_text', '').strip()
+    commenter_name = data.get('commenter_name', '').strip() or None
+
+    if not comment_text:
+        return jsonify({'error': 'Comment text is required'}), 400
+
+    if len(comment_text) > 2000:
+        return jsonify({'error': 'Comment must be 2000 characters or less'}), 400
+
+    try:
+        # Check if song exists
+        song = Song.get_by_id(song_id)
+        if not song:
+            return jsonify({'error': 'Song not found'}), 404
+
+        # Create comment
+        comment = Comment.create(
+            song_id=song_id,
+            comment_text=comment_text,
+            ip_address=request.remote_addr,
+            commenter_name=commenter_name
+        )
+
+        return jsonify({
+            'success': True,
+            'comment': {
+                'id': comment['id'],
+                'commenter_name': comment['commenter_name'],
+                'comment_text': comment['comment_text'],
+                'created_at': comment['created_at'].strftime('%Y-%m-%d %H:%M:%S')
+            }
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/comments/<int:comment_id>', methods=['DELETE'])
+@require_admin_ip
+def delete_comment(comment_id):
+    """Delete a comment (admin only)."""
+    try:
+        comment = Comment.get_by_id(comment_id)
+        if not comment:
+            return jsonify({'error': 'Comment not found'}), 404
+
+        Comment.delete(comment_id)
+        return jsonify({'success': True})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 

@@ -75,6 +75,21 @@ CREATE TABLE ratings (
 CREATE INDEX idx_ratings_song ON ratings(song_id);
 CREATE INDEX idx_ratings_ip ON ratings(ip_address);
 
+-- Comments table: stores user comments on songs
+CREATE TABLE comments (
+    id SERIAL PRIMARY KEY,
+    song_id INTEGER REFERENCES songs(id) ON DELETE CASCADE,
+    commenter_name VARCHAR(100),  -- Optional name for the commenter
+    comment_text TEXT NOT NULL,
+    ip_address VARCHAR(45) NOT NULL,  -- IPv4 or IPv6 address
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Indexes for comments
+CREATE INDEX idx_comments_song ON comments(song_id, created_at DESC);
+CREATE INDEX idx_comments_ip ON comments(ip_address);
+
 -- Create the 'all' playlist by default
 INSERT INTO playlists (identifier, name, description, sort_order)
 VALUES ('all', 'All Songs', 'Complete collection of all uploaded songs', 'title');

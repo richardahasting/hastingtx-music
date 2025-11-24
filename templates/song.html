@@ -130,6 +130,53 @@
     </div>
     {% endif %}
 
+    <!-- Comments Section -->
+    <div class="comments-section">
+        <h3>Comments ({{ comment_count }})</h3>
+
+        <!-- Comment Form -->
+        <div class="comment-form-container">
+            <form id="comment-form">
+                <div class="form-group">
+                    <label for="commenter_name">Your Name (optional)</label>
+                    <input type="text" id="commenter_name" name="commenter_name" maxlength="100" placeholder="Anonymous">
+                </div>
+                <div class="form-group">
+                    <label for="comment_text">Comment *</label>
+                    <textarea id="comment_text" name="comment_text" rows="3" maxlength="2000" required placeholder="Share your thoughts about this song..."></textarea>
+                    <small class="char-count"><span id="char-count">0</span>/2000 characters</small>
+                </div>
+                <button type="submit" class="btn btn-primary" id="submit-comment-btn">Post Comment</button>
+            </form>
+            <div id="comment-success" class="success-message" style="display: none;">
+                <p>Comment posted successfully!</p>
+            </div>
+            <div id="comment-error" class="error-message" style="display: none;">
+                <p id="comment-error-text"></p>
+            </div>
+        </div>
+
+        <!-- Comments List -->
+        <div class="comments-list" id="comments-list">
+            {% if comments %}
+                {% for comment in comments %}
+                <div class="comment" data-comment-id="{{ comment.id }}">
+                    <div class="comment-header">
+                        <span class="commenter-name">{{ comment.commenter_name or 'Anonymous' }}</span>
+                        <span class="comment-date">{{ comment.created_at.strftime('%B %d, %Y at %I:%M %p') }}</span>
+                        {% if is_admin_ip %}
+                        <button class="btn-delete-comment" data-comment-id="{{ comment.id }}" title="Delete comment">×</button>
+                        {% endif %}
+                    </div>
+                    <div class="comment-text">{{ comment.comment_text }}</div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <p class="no-comments">No comments yet. Be the first to comment!</p>
+            {% endif %}
+        </div>
+    </div>
+
     <div class="back-link">
         <a href="{{ url_for('playlist', identifier='all') }}">&larr; Back to all songs</a>
     </div>
@@ -173,6 +220,113 @@ document.querySelectorAll('.star-btn').forEach(btn => {
         .catch(error => {
             console.error('Error:', error);
             alert('Error submitting rating');
+        });
+    });
+});
+
+// Character counter for comment textarea
+const commentTextarea = document.getElementById('comment_text');
+const charCount = document.getElementById('char-count');
+
+if (commentTextarea) {
+    commentTextarea.addEventListener('input', function() {
+        charCount.textContent = this.value.length;
+    });
+}
+
+// Comment submission
+const commentForm = document.getElementById('comment-form');
+const submitCommentBtn = document.getElementById('submit-comment-btn');
+const commentSuccess = document.getElementById('comment-success');
+const commentError = document.getElementById('comment-error');
+const commentErrorText = document.getElementById('comment-error-text');
+
+if (commentForm) {
+    commentForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+
+        const commenterName = document.getElementById('commenter_name').value.trim();
+        const commentText = document.getElementById('comment_text').value.trim();
+
+        if (!commentText) {
+            commentErrorText.textContent = 'Please enter a comment';
+            commentError.style.display = 'block';
+            return;
+        }
+
+        submitCommentBtn.disabled = true;
+        submitCommentBtn.textContent = 'Posting...';
+        commentSuccess.style.display = 'none';
+        commentError.style.display = 'none';
+
+        fetch('/api/songs/{{ song.id }}/comments', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                commenter_name: commenterName || null,
+                comment_text: commentText
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Show success message
+                commentSuccess.style.display = 'block';
+
+                // Clear form
+                commentForm.reset();
+                charCount.textContent = '0';
+
+                // Reload page after 1 second to show new comment
+                setTimeout(() => {
+                    location.reload();
+                }, 1000);
+            } else {
+                commentErrorText.textContent = data.error || 'Error posting comment';
+                commentError.style.display = 'block';
+                submitCommentBtn.disabled = false;
+                submitCommentBtn.textContent = 'Post Comment';
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            commentErrorText.textContent = 'Error posting comment';
+            commentError.style.display = 'block';
+            submitCommentBtn.disabled = false;
+            submitCommentBtn.textContent = 'Post Comment';
+        });
+    });
+}
+
+// Delete comment (admin only)
+document.querySelectorAll('.btn-delete-comment').forEach(btn => {
+    btn.addEventListener('click', function() {
+        if (!confirm('Are you sure you want to delete this comment?')) {
+            return;
+        }
+
+        const commentId = this.dataset.commentId;
+
+        fetch(`/api/comments/${commentId}`, {
+            method: 'DELETE'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Remove comment from DOM
+                document.querySelector(`.comment[data-comment-id="${commentId}"]`).remove();
+
+                // Update comment count
+                location.reload();
+            } else {
+                alert('Error deleting comment: ' + (data.error || 'Unknown error'));
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error deleting comment');
         });
     });
 });
