@@ -1,6 +1,94 @@
-"""Data models and database operations for songs, playlists, and genres."""
+"""Data models and database operations for songs, playlists, genres, and tags."""
 import secrets
 from db import db
+
+
+class Tag:
+    """Tag model and database operations."""
+
+    @staticmethod
+    def get_all():
+        """Get all tags ordered by name."""
+        query = "SELECT * FROM tags ORDER BY name"
+        return db.execute(query)
+
+    @staticmethod
+    def get_by_id(tag_id):
+        """Get a tag by its ID."""
+        query = "SELECT * FROM tags WHERE id = %s"
+        return db.execute_one(query, (tag_id,))
+
+    @staticmethod
+    def get_by_name(name):
+        """Get a tag by its name (case-insensitive)."""
+        query = "SELECT * FROM tags WHERE LOWER(name) = LOWER(%s)"
+        return db.execute_one(query, (name,))
+
+    @staticmethod
+    def create(name, description=None):
+        """Create a new tag."""
+        query = """
+            INSERT INTO tags (name, description)
+            VALUES (%s, %s)
+            RETURNING *
+        """
+        return db.insert(query, (name.lower(), description))
+
+    @staticmethod
+    def get_or_create(name):
+        """Get existing tag or create new one."""
+        tag = Tag.get_by_name(name)
+        if tag:
+            return tag
+        return Tag.create(name)
+
+    @staticmethod
+    def get_with_songs():
+        """Get all tags that have at least one song, with song count."""
+        query = """
+            SELECT t.*, COUNT(st.song_id) as song_count
+            FROM tags t
+            INNER JOIN song_tags st ON t.id = st.tag_id
+            GROUP BY t.id
+            ORDER BY t.name
+        """
+        return db.execute(query)
+
+    @staticmethod
+    def get_tags_for_song(song_id):
+        """Get all tags for a specific song."""
+        query = """
+            SELECT t.*
+            FROM tags t
+            JOIN song_tags st ON t.id = st.tag_id
+            WHERE st.song_id = %s
+            ORDER BY t.name
+        """
+        return db.execute(query, (song_id,))
+
+    @staticmethod
+    def set_song_tags(song_id, tag_ids):
+        """Set the tags for a song (replaces existing)."""
+        # Remove existing tags
+        db.execute("DELETE FROM song_tags WHERE song_id = %s", (song_id,))
+        # Add new tags
+        for tag_id in tag_ids:
+            db.execute(
+                "INSERT INTO song_tags (song_id, tag_id) VALUES (%s, %s) ON CONFLICT DO NOTHING",
+                (song_id, tag_id)
+            )
+
+    @staticmethod
+    def add_song_tag(song_id, tag_id):
+        """Add a single tag to a song."""
+        query = "INSERT INTO song_tags (song_id, tag_id) VALUES (%s, %s) ON CONFLICT DO NOTHING"
+        db.execute(query, (song_id, tag_id))
+
+    @staticmethod
+    def remove_song_tag(song_id, tag_id):
+        """Remove a single tag from a song."""
+        query = "DELETE FROM song_tags WHERE song_id = %s AND tag_id = %s"
+        db.execute(query, (song_id, tag_id))
 
 
 class Genre:
@@ -152,6 +240,19 @@ class Song:
         """Get all songs in a genre."""
         query = "SELECT * FROM songs WHERE genre = %s ORDER BY title"
         return db.execute(query, (genre_name,))
+
+    @staticmethod
+    def get_by_tag(tag_name):
+        """Get all songs with a specific tag."""
+        query = """
+            SELECT s.*
+            FROM songs s
+            JOIN song_tags st ON s.id = st.song_id
+            JOIN tags t ON st.tag_id = t.id
+            WHERE LOWER(t.name) = LOWER(%s)
+            ORDER BY s.title
+        """
+        return db.execute(query, (tag_name,))
 
     @staticmethod
     def get_distinct_albums():

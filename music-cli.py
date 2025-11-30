@@ -9,6 +9,7 @@ Commands:
     songs       - Manage songs (list, show, update, search, etc.)
     playlists   - Manage playlists (list, show, create, add/remove songs)
     genres      - Manage genres (list, create, assign)
+    tags        - Manage tags (list, create, assign, songs by tag)
     albums      - Manage albums (list, show, rename, merge)
     stats       - View statistics and reports
     export      - Export data to various formats
@@ -27,7 +28,7 @@ from tabulate import tabulate
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from db import db
-from models import Song, Playlist, Genre, Rating, Comment, Subscriber
+from models import Song, Playlist, Genre, Tag, Rating, Comment, Subscriber
 
 
 def format_duration(seconds):
@@ -443,6 +444,121 @@ def cmd_genres_songs(args):
     rows = [[s['id'], truncate(s['title'], 40), truncate(s['artist'], 25), truncate(s['album'], 25)] for s in songs]
     print(tabulate(rows, headers=headers, tablefmt='simple'))
     print(f"\nFound: {len(songs)} songs in '{args.name}'")
+
+
+# ============================================================================
+# TAG COMMANDS
+# ============================================================================
+
+def cmd_tags_list(args):
+    """List all tags."""
+    tags = Tag.get_all()
+
+    if args.format == 'json':
+        print(json.dumps([dict(t) for t in tags], default=str, indent=2))
+        return
+
+    # Count songs per tag
+    tag_counts = {}
+    for t in tags:
+        query = "SELECT COUNT(*) as count FROM song_tags WHERE tag_id = %s"
+        result = db.execute_one(query, (t['id'],))
+        tag_counts[t['id']] = result['count'] if result else 0
+
+    headers = ['ID', 'Name', 'Songs', 'Description']
+    rows = []
+    for t in tags:
+        rows.append([
+            t['id'],
+            t['name'],
+            tag_counts.get(t['id'], 0),
+            truncate(t['description'], 40) if t['description'] else '-'
+        ])
+
+    print(tabulate(rows, headers=headers, tablefmt='simple'))
+    print(f"\nTotal: {len(tags)} tags")
+
+
+def cmd_tags_create(args):
+    """Create a new tag."""
+    name = args.name.lower()
+    # Check for duplicate
+    existing = Tag.get_by_name(name)
+    if existing:
+        print(f"Error: Tag '{name}' already exists", file=sys.stderr)
+        sys.exit(1)
+
+    tag = Tag.create(name, args.description)
+    print(f"Created tag #{tag['id']}: #{tag['name']}")
+
+
+def cmd_tags_songs(args):
+    """List songs with a tag."""
+    tag = Tag.get_by_name(args.name)
+    if not tag:
+        print(f"Error: Tag '{args.name}' not found", file=sys.stderr)
+        sys.exit(1)
+
+    songs = Song.get_by_tag(args.name)
+
+    if not songs:
+        print(f"No songs with tag '#{args.name}'")
+        return
+
+    headers = ['ID', 'Title', 'Artist', 'Album']
+    rows = [[s['id'], truncate(s['title'], 40), truncate(s['artist'], 25), truncate(s['album'], 25)] for s in songs]
+    print(tabulate(rows, headers=headers, tablefmt='simple'))
+    print(f"\nFound: {len(songs)} songs with '#{args.name}'")
+
+
+def cmd_tags_add(args):
+    """Add a tag to a song."""
+    song = Song.get_by_id(args.song_id)
+    if not song:
+        print(f"Error: Song #{args.song_id} not found", file=sys.stderr)
+        sys.exit(1)
+
+    tag = Tag.get_by_name(args.tag)
+    if not tag:
+        # Create tag if it doesn't exist
+        tag = Tag.create(args.tag.lower())
+        print(f"Created new tag: #{tag['name']}")
+
+    Tag.add_song_tag(args.song_id, tag['id'])
+    print(f"Added tag '#{tag['name']}' to '{song['title']}'")
+
+
+def cmd_tags_remove(args):
+    """Remove a tag from a song."""
+    song = Song.get_by_id(args.song_id)
+    if not song:
+        print(f"Error: Song #{args.song_id} not found", file=sys.stderr)
+        sys.exit(1)
+
+    tag = Tag.get_by_name(args.tag)
+    if not tag:
+        print(f"Error: Tag '{args.tag}' not found", file=sys.stderr)
+        sys.exit(1)
+
+    Tag.remove_song_tag(args.song_id, tag['id'])
+    print(f"Removed tag '#{tag['name']}' from '{song['title']}'")
+
+
+def cmd_tags_show_song(args):
+    """Show tags for a specific song."""
+    song = Song.get_by_id(args.song_id)
+    if not song:
+        print(f"Error: Song #{args.song_id} not found", file=sys.stderr)
+        sys.exit(1)
+
+    tags = Tag.get_tags_for_song(args.song_id)
+
+    print(f"Tags for '{song['title']}':")
+    if tags:
+        for t in tags:
+            print(f"  #{t['name']}")
+    else:
+        print("  (no tags)")
 
 
 # ============================================================================
@@ -953,6 +1069,43 @@ def main():
     p = genres_sub.add_parser('songs', help='List songs in genre')
     p.add_argument('name', help='Genre name')
     p.set_defaults(func=cmd_genres_songs)
+
+    # ---- TAGS ----
+    tags_parser = subparsers.add_parser('tags', help='Manage tags')
+    tags_sub = tags_parser.add_subparsers(dest='subcommand')
+
+    # tags list
+    p = tags_sub.add_parser('list', help='List all tags')
+    p.add_argument('--format', choices=['table', 'json'], default='table')
+    p.set_defaults(func=cmd_tags_list)
+
+    # tags create
+    p = tags_sub.add_parser('create', help='Create tag')
+    p.add_argument('name', help='Tag name')
+    p.add_argument('--description', help='Description')
+    p.set_defaults(func=cmd_tags_create)
+
+    # tags songs
+    p = tags_sub.add_parser('songs', help='List songs with tag')
+    p.add_argument('name', help='Tag name')
+    p.set_defaults(func=cmd_tags_songs)
+
+    # tags add
+    p = tags_sub.add_parser('add', help='Add tag to song')
+    p.add_argument('song_id', type=int, help='Song ID')
+    p.add_argument('tag', help='Tag name')
+    p.set_defaults(func=cmd_tags_add)
+
+    # tags remove
+    p = tags_sub.add_parser('remove', help='Remove tag from song')
+    p.add_argument('song_id', type=int, help='Song ID')
+    p.add_argument('tag', help='Tag name')
+    p.set_defaults(func=cmd_tags_remove)
+
+    # tags show
+    p = tags_sub.add_parser('show', help='Show tags for a song')
+    p.add_argument('song_id', type=int, help='Song ID')
+    p.set_defaults(func=cmd_tags_show_song)
 
     # ---- ALBUMS ----
     albums_parser = subparsers.add_parser('albums', help='Manage albums')

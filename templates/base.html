@@ -36,6 +36,16 @@
                         </ul>
                     </li>
                     {% endif %}
+                    {% if nav_tags %}
+                    <li class="nav-dropdown">
+                        <a href="#" class="dropdown-toggle">Tags ▾</a>
+                        <ul class="dropdown-menu">
+                            {% for t in nav_tags %}
+                            <li><a href="{{ url_for('tag', tag_name=t.name) }}">#{{ t.name }} ({{ t.song_count }})</a></li>
+                            {% endfor %}
+                        </ul>
+                    </li>
+                    {% endif %}
                     {% if nav_playlists %}
                     <li class="nav-dropdown">
                         <a href="#" class="dropdown-toggle">Playlists ▾</a>

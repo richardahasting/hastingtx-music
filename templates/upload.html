@@ -136,14 +136,26 @@
                 </div>
 
                 <div class="form-group">
-                    <label for="tags">Tags (comma-separated)</label>
-                    <input type="text" id="tags" name="tags" placeholder="rock, upbeat, summer">
-                </div>
-
-                <div class="form-group">
                     <label for="identifier">URL Identifier (auto-generated if blank)</label>
                     <input type="text" id="identifier" name="identifier" placeholder="my-song-title">
                     <small>Will be used in the URL: /music/<strong>identifier</strong></small>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <h3>Tags (optional)</h3>
+                <div class="tag-checkboxes checkbox-grid">
+                    {% for tag in tags %}
+                    <label class="checkbox-label">
+                        <input type="checkbox" name="tags[]" value="{{ tag.id }}">
+                        #{{ tag.name }}
+                    </label>
+                    {% endfor %}
+                </div>
+                <div class="new-tag-inline" style="margin-top: 0.5rem;">
+                    <input type="text" id="new-tag-name" placeholder="Add new tag" style="width: 150px; display: inline-block;">
+                    <button type="button" class="btn btn-small" onclick="createNewTag()">Add</button>
+                    <span id="tag-create-status" style="margin-left: 0.5rem;"></span>
                 </div>
             </div>
 
@@ -486,5 +498,46 @@ uploadForm.addEventListener('submit', async (e) => {
         submitBtn.disabled = false;
     }
 });
+
+// Create new tag
+async function createNewTag() {
+    const nameInput = document.getElementById('new-tag-name');
+    const status = document.getElementById('tag-create-status');
+    const name = nameInput.value.trim().toLowerCase();
+
+    if (!name) {
+        status.innerHTML = '<span class="warning-alert">Tag name required</span>';
+        return;
+    }
+
+    status.innerHTML = 'Creating...';
+
+    try {
+        const response = await fetch('/api/tags', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: name })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            // Add checkbox for new tag
+            const container = document.querySelector('.tag-checkboxes');
+            const label = document.createElement('label');
+            label.className = 'checkbox-label';
+            label.innerHTML = `<input type="checkbox" name="tags[]" value="${data.tag.id}" checked> #${data.tag.name}`;
+            container.appendChild(label);
+
+            nameInput.value = '';
+            status.innerHTML = `<span class="warning-info">Tag "#${data.tag.name}" created!</span>`;
+            setTimeout(() => { status.innerHTML = ''; }, 2000);
+        } else {
+            status.innerHTML = `<span class="warning-alert">${data.error}</span>`;
+        }
+    } catch (error) {
+        status.innerHTML = `<span class="warning-alert">Error: ${error.message}</span>`;
+    }
+}
 </script>
 {% endblock %}

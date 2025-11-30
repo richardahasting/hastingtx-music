@@ -9,7 +9,7 @@ from werkzeug.utils import secure_filename
 from PIL import Image
 
 from config import config
-from models import Song, Playlist, Rating, Comment, Subscriber, EmailLog, Genre
+from models import Song, Playlist, Rating, Comment, Subscriber, EmailLog, Genre, Tag
 from utils import (
     allowed_file, generate_identifier, extract_mp3_metadata, write_mp3_metadata,
     save_uploaded_file, is_ip_allowed, format_duration, format_file_size
@@ -49,7 +49,9 @@ def inject_admin_status():
     nav_albums = [a['album'] for a in albums if a['album']]
     # Get genres that have songs for navigation
     nav_genres = Genre.get_with_songs()
-    return dict(is_admin_ip=is_admin, nav_playlists=nav_playlists, nav_albums=nav_albums, nav_genres=nav_genres)
+    # Get tags that have songs for navigation
+    nav_tags = Tag.get_with_songs()
+    return dict(is_admin_ip=is_admin, nav_playlists=nav_playlists, nav_albums=nav_albums, nav_genres=nav_genres, nav_tags=nav_tags)
 
 
 # Template filters
@@ -190,6 +192,31 @@ def genre(genre_name):
     return render_template('playlist.html', playlist=genre_playlist, songs=songs, is_genre=True)
 
 
+@app.route('/music/tag/<path:tag_name>')
+def tag(tag_name):
+    """Display all songs with a specific tag."""
+    # Get songs with this tag
+    songs = Song.get_by_tag(tag_name)
+
+    if not songs:
+        abort(404, description=f"Tag '{tag_name}' not found or has no songs")
+
+    # Get tag info for description
+    tag_info = Tag.get_by_name(tag_name)
+    tag_desc = tag_info['description'] if tag_info else None
+
+    # Create a virtual playlist object for the template
+    tag_playlist = {
+        'id': None,
+        'identifier': 'tag-' + tag_name.lower().replace(' ', '-'),
+        'name': f'#{tag_name}',
+        'description': tag_desc or f'All songs tagged with #{tag_name}',
+        'sort_order': 'title'
+    }
+
+    return render_template('playlist.html', playlist=tag_playlist, songs=songs, is_tag=True)
+
+
 @app.route('/download/song/<identifier>')
 def download_song(identifier):
     """Download a single MP3 file."""
@@ -266,7 +293,8 @@ def upload():
         albums = Song.get_distinct_albums()
         album_names = [a['album'] for a in albums if a['album']]
         genres = Genre.get_all()
-        return render_template('upload.html', playlists=playlists, albums=album_names, genres=genres)
+        tags = Tag.get_all()
+        return render_template('upload.html', playlists=playlists, albums=album_names, genres=genres, tags=tags)
 
     # Handle POST - file upload
     if 'file' not in request.files:
@@ -374,6 +402,12 @@ def upload():
             if playlist_id:
                 Playlist.add_song(int(playlist_id), song['id'])
 
+        # Add selected tags
+        tag_ids = request.form.getlist('tags[]')
+        for tag_id in tag_ids:
+            if tag_id:
+                Tag.add_song_tag(song['id'], int(tag_id))
+
         return jsonify({
             'success': True,
             'song': dict(song),
@@ -400,7 +434,10 @@ def edit_song(song_id):
         song_playlists = Playlist.get_playlists_for_song(song_id)
         song_playlist_ids = [p['id'] for p in song_playlists]
         genres = Genre.get_all()
-        return render_template('edit_song.html', song=song, playlists=playlists, song_playlist_ids=song_playlist_ids, genres=genres)
+        tags = Tag.get_all()
+        song_tags = Tag.get_tags_for_song(song_id)
+        song_tag_ids = [t['id'] for t in song_tags]
+        return render_template('edit_song.html', song=song, playlists=playlists, song_playlist_ids=song_playlist_ids, genres=genres, tags=tags, song_tag_ids=song_tag_ids)
 
     # Handle POST - update metadata
     try:
@@ -470,6 +507,11 @@ def edit_song(song_id):
         playlist_ids = request.form.getlist('playlists[]')
         playlist_ids = [int(pid) for pid in playlist_ids if pid]
         Playlist.set_song_playlists(song_id, playlist_ids)
+
+        # Update tag memberships
+        tag_ids = request.form.getlist('tags[]')
+        tag_ids = [int(tid) for tid in tag_ids if tid]
+        Tag.set_song_tags(song_id, tag_ids)
 
         return jsonify({
             'success': True,
@@ -770,6 +812,36 @@ def create_genre():
     try:
         genre = Genre.create(name, description, parent_genre_id)
         return jsonify({'success': True, 'genre': dict(genre)})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/tags')
+def api_tags():
+    """Get all tags as JSON."""
+    tags = Tag.get_all()
+    return jsonify([dict(t) for t in tags])
+
+
+@app.route('/api/tags', methods=['POST'])
+@require_admin_ip
+def create_tag():
+    """Create a new tag."""
+    data = request.get_json()
+    name = data.get('name', '').strip().lower()
+    description = data.get('description', '').strip() or None
+
+    if not name:
+        return jsonify({'error': 'Tag name is required'}), 400
+
+    # Check for case-insensitive duplicate
+    existing = Tag.get_by_name(name)
+    if existing:
+        return jsonify({'error': f'Tag "{existing["name"]}" already exists'}), 400
+
+    try:
+        tag = Tag.create(name, description)
+        return jsonify({'success': True, 'tag': dict(tag)})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
