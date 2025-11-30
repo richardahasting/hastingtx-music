@@ -44,9 +44,17 @@
                 <tr class="song-row" data-song-id="{{ song.id }}">
                     <td class="song-number">{{ loop.index }}</td>
                     <td class="song-title">
-                        <a href="{{ url_for('song', identifier=song.identifier) }}">
-                            {{ song.title }}
-                        </a>
+                        <div class="song-title-wrapper">
+                            <a href="{{ url_for('song', identifier=song.identifier) }}">
+                                {{ song.title }}
+                            </a>
+                            {% if song.description or song.genre %}
+                            <div class="song-tooltip">
+                                {% if song.genre %}<div class="tooltip-genre">{{ song.genre }}</div>{% endif %}
+                                {% if song.description %}<div class="tooltip-desc">{{ song.description }}</div>{% endif %}
+                            </div>
+                            {% endif %}
+                        </div>
                     </td>
                     <td class="song-artist">{{ song.artist or '-' }}</td>
                     <td class="song-album">
