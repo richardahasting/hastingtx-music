@@ -646,10 +646,28 @@ def subscribe():
         return jsonify({'error': 'Invalid email address'}), 400
 
     try:
+        # Check if already subscribed
+        existing = Subscriber.get_by_email(email)
+
+        if existing and existing['is_active']:
+            return jsonify({
+                'success': True,
+                'message': 'This email is already subscribed to our weekly updates!'
+            })
+
+        # Create new subscription or re-activate
         subscriber = Subscriber.create(email)
+
+        if existing and not existing['is_active']:
+            # Was previously unsubscribed, now re-activated
+            message = 'Welcome back! Your subscription has been reactivated.'
+        else:
+            # New subscriber
+            message = 'Successfully subscribed! You\'ll receive weekly updates about new songs.'
+
         return jsonify({
             'success': True,
-            'message': 'Successfully subscribed! You\'ll receive weekly updates about new songs.'
+            'message': message
         })
     except Exception as e:
         return jsonify({'error': str(e)}), 500
