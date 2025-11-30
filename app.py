@@ -236,7 +236,9 @@ def upload():
     """Upload a new song."""
     if request.method == 'GET':
         playlists = Playlist.get_all()
-        return render_template('upload.html', playlists=playlists)
+        albums = Song.get_distinct_albums()
+        album_names = [a['album'] for a in albums if a['album']]
+        return render_template('upload.html', playlists=playlists, albums=album_names)
 
     # Handle POST - file upload
     if 'file' not in request.files:

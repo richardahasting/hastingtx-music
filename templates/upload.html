@@ -43,8 +43,17 @@
                 </div>
 
                 <div class="form-group">
-                    <label for="album">Album</label>
-                    <input type="text" id="album" name="album">
+                    <label for="album-select">Album</label>
+                    <select id="album-select" onchange="handleAlbumSelect()">
+                        <option value="">-- Select Album --</option>
+                        {% for album_name in albums %}
+                        <option value="{{ album_name }}">{{ album_name }}</option>
+                        {% endfor %}
+                        <option value="__new__">+ Create New Album</option>
+                    </select>
+                    <input type="text" id="album-new" placeholder="Enter new album name" style="display: none; margin-top: 0.5rem;">
+                    <input type="hidden" id="album-hidden" name="album">
+                    <div id="album-warning" class="album-warning" style="display: none;"></div>
                 </div>
 
                 <div class="form-group">
@@ -142,6 +151,66 @@ const fileInfo = document.getElementById('file-info');
 const uploadForm = document.getElementById('upload-form');
 const uploadProgress = document.getElementById('upload-progress');
 const submitBtn = document.getElementById('submit-btn');
+
+// Existing albums for case-insensitive checking
+const existingAlbums = [
+    {% for album_name in albums %}
+    "{{ album_name }}",
+    {% endfor %}
+];
+
+// Album selection handling
+function handleAlbumSelect() {
+    const select = document.getElementById('album-select');
+    const newInput = document.getElementById('album-new');
+    const hiddenInput = document.getElementById('album-hidden');
+    const warning = document.getElementById('album-warning');
+
+    if (select.value === '__new__') {
+        newInput.style.display = 'block';
+        newInput.focus();
+        hiddenInput.value = '';
+    } else {
+        newInput.style.display = 'none';
+        newInput.value = '';
+        hiddenInput.value = select.value;
+        warning.style.display = 'none';
+    }
+}
+
+// Check for case-insensitive duplicate when typing new album name
+document.getElementById('album-new').addEventListener('input', function() {
+    const newAlbum = this.value.trim();
+    const hiddenInput = document.getElementById('album-hidden');
+    const warning = document.getElementById('album-warning');
+
+    if (!newAlbum) {
+        hiddenInput.value = '';
+        warning.style.display = 'none';
+        return;
+    }
+
+    // Check for case-insensitive match
+    const match = existingAlbums.find(a => a.toLowerCase() === newAlbum.toLowerCase());
+
+    if (match) {
+        if (match === newAlbum) {
+            // Exact match - use the existing one
+            warning.innerHTML = `<span class="warning-info">Album "${match}" already exists. Using existing album.</span>`;
+            warning.style.display = 'block';
+            hiddenInput.value = match;
+        } else {
+            // Case difference - warn and use existing
+            warning.innerHTML = `<span class="warning-alert">Similar album "${match}" exists. Using existing album to avoid duplicates.</span>`;
+            warning.style.display = 'block';
+            hiddenInput.value = match;
+        }
+    } else {
+        // New album
+        warning.style.display = 'none';
+        hiddenInput.value = newAlbum;
+    }
+});
 
 // Drag and drop handlers
 dropZone.addEventListener('click', () => fileInput.click());
