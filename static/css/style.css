@@ -917,7 +917,7 @@ footer {
 
 .subscribe-form input[type="email"] {
     flex: 1;
-    padding: 1rem 1.25rem;
+    padding: 2rem 1.25rem;
     border: 2px solid white;
     border-radius: 6px;
     font-size: 1.1rem;
@@ -930,7 +930,7 @@ footer {
 
 .subscribe-form button {
     white-space: nowrap;
-    padding: 1rem 2rem;
+    padding: 2rem 2rem;
     font-size: 1.1rem;
 }
 
