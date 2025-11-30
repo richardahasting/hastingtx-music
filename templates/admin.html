@@ -109,6 +109,7 @@
             </thead>
             <tbody>
                 {% for playlist in playlists %}
+                {% if playlist.identifier != 'all' %}
                 <tr>
                     <td>
                         <a href="{{ url_for('playlist', identifier=playlist.identifier) }}">
@@ -120,9 +121,7 @@
                     <td>
                         <a href="{{ url_for('playlist', identifier=playlist.identifier) }}" class="btn-small">View</a>
                         <button class="btn-small" onclick="toggleManageSongs({{ playlist.id }}, '{{ playlist.name }}')">Manage Songs</button>
-                        {% if playlist.identifier != 'all' %}
                         <button class="btn-small btn-danger" onclick="deletePlaylist({{ playlist.id }}, '{{ playlist.name }}')">Delete</button>
-                        {% endif %}
                     </td>
                 </tr>
                 <tr id="manage-songs-{{ playlist.id }}" class="manage-songs-row" style="display: none;">
@@ -139,6 +138,7 @@
                         </div>
                     </td>
                 </tr>
+                {% endif %}
                 {% endfor %}
             </tbody>
         </table>

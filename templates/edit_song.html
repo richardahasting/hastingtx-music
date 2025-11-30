@@ -85,11 +85,13 @@
                 <p>Select which playlists this song belongs to:</p>
                 <div class="playlist-checkboxes">
                     {% for playlist in playlists %}
+                    {% if playlist.identifier != 'all' %}
                     <label class="checkbox-label">
                         <input type="checkbox" name="playlists[]" value="{{ playlist.id }}"
                             {% if playlist.id in song_playlist_ids %}checked{% endif %}>
                         {{ playlist.name }}
                     </label>
+                    {% endif %}
                     {% endfor %}
                 </div>
             </div>
