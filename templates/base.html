@@ -16,6 +16,16 @@
                 </h1>
                 <ul class="nav-links">
                     <li><a href="{{ url_for('playlist', identifier='all') }}">All Songs</a></li>
+                    {% if nav_albums %}
+                    <li class="nav-dropdown">
+                        <a href="#" class="dropdown-toggle">Albums ▾</a>
+                        <ul class="dropdown-menu">
+                            {% for album_name in nav_albums %}
+                            <li><a href="{{ url_for('album', album_name=album_name) }}">{{ album_name }}</a></li>
+                            {% endfor %}
+                        </ul>
+                    </li>
+                    {% endif %}
                     {% if nav_playlists %}
                     <li class="nav-dropdown">
                         <a href="#" class="dropdown-toggle">Playlists ▾</a>
