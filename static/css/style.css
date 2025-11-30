@@ -1169,6 +1169,21 @@ footer {
     letter-spacing: 0.5px;
 }
 
+.tooltip-tags {
+    margin-bottom: 6px;
+}
+
+.tooltip-tag {
+    display: inline-block;
+    background-color: rgba(52, 152, 219, 0.3);
+    color: #7ec8f7;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 0.8rem;
+    margin-right: 4px;
+    margin-bottom: 4px;
+}
+
 .tooltip-desc {
     color: #ecf0f1;
 }

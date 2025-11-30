@@ -48,9 +48,11 @@
                             <a href="{{ url_for('song', identifier=song.identifier) }}">
                                 {{ song.title }}
                             </a>
-                            {% if song.description or song.genre %}
+                            {% set tags = song_tags_map.get(song.id, []) if song_tags_map else [] %}
+                            {% if song.description or song.genre or tags %}
                             <div class="song-tooltip">
                                 {% if song.genre %}<div class="tooltip-genre">{{ song.genre }}</div>{% endif %}
+                                {% if tags %}<div class="tooltip-tags">{% for tag in tags %}<span class="tooltip-tag">#{{ tag.name }}</span>{% endfor %}</div>{% endif %}
                                 {% if song.description %}<div class="tooltip-desc">{{ song.description }}</div>{% endif %}
                             </div>
                             {% endif %}

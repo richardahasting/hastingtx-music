@@ -133,6 +133,15 @@ def song(identifier):
                          song_tags=song_tags)
 
 
+def get_song_tags_map(songs):
+    """Get a map of song_id -> list of tags for a list of songs."""
+    song_tags_map = {}
+    for song in songs:
+        tags = Tag.get_tags_for_song(song['id'])
+        song_tags_map[song['id']] = tags
+    return song_tags_map
+
+
 @app.route('/music/playlist/<identifier>')
 def playlist(identifier):
     """Display a playlist player page."""
@@ -147,7 +156,10 @@ def playlist(identifier):
     if identifier == 'all':
         songs = Song.get_all(order_by='title')
 
-    return render_template('playlist.html', playlist=playlist, songs=songs)
+    # Get tags for each song
+    song_tags_map = get_song_tags_map(songs)
+
+    return render_template('playlist.html', playlist=playlist, songs=songs, song_tags_map=song_tags_map)
 
 
 @app.route('/music/album/<path:album_name>')
@@ -168,7 +180,10 @@ def album(album_name):
         'sort_order': 'title'
     }
 
-    return render_template('playlist.html', playlist=album_playlist, songs=songs, is_album=True)
+    # Get tags for each song
+    song_tags_map = get_song_tags_map(songs)
+
+    return render_template('playlist.html', playlist=album_playlist, songs=songs, is_album=True, song_tags_map=song_tags_map)
 
 
 @app.route('/music/genre/<path:genre_name>')
@@ -193,7 +208,10 @@ def genre(genre_name):
         'sort_order': 'title'
     }
 
-    return render_template('playlist.html', playlist=genre_playlist, songs=songs, is_genre=True)
+    # Get tags for each song
+    song_tags_map = get_song_tags_map(songs)
+
+    return render_template('playlist.html', playlist=genre_playlist, songs=songs, is_genre=True, song_tags_map=song_tags_map)
 
 
 @app.route('/music/tag/<path:tag_name>')
@@ -218,7 +236,10 @@ def tag(tag_name):
         'sort_order': 'title'
     }
 
-    return render_template('playlist.html', playlist=tag_playlist, songs=songs, is_tag=True)
+    # Get tags for each song
+    song_tags_map = get_song_tags_map(songs)
+
+    return render_template('playlist.html', playlist=tag_playlist, songs=songs, is_tag=True, song_tags_map=song_tags_map)
 
 
 @app.route('/download/song/<identifier>')
