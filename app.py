@@ -372,7 +372,8 @@ def edit_song(song_id):
         playlists = Playlist.get_all()
         song_playlists = Playlist.get_playlists_for_song(song_id)
         song_playlist_ids = [p['id'] for p in song_playlists]
-        return render_template('edit_song.html', song=song, playlists=playlists, song_playlist_ids=song_playlist_ids)
+        genres = Genre.get_all()
+        return render_template('edit_song.html', song=song, playlists=playlists, song_playlist_ids=song_playlist_ids, genres=genres)
 
     # Handle POST - update metadata
     try:
