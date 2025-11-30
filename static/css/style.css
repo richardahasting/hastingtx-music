@@ -1172,3 +1172,15 @@ footer {
 .tooltip-desc {
     color: #ecf0f1;
 }
+
+/* Tag links */
+.tag-link {
+    color: #3498db;
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.tag-link:hover {
+    color: #2980b9;
+    text-decoration: underline;
+}

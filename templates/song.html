@@ -119,13 +119,17 @@
     </div>
     {% endif %}
 
-    {% if song.genre or song.tags %}
+    {% if song.genre or song_tags %}
     <div class="song-metadata">
         {% if song.genre %}
         <p><strong>Genre:</strong> {{ song.genre }}</p>
         {% endif %}
-        {% if song.tags %}
-        <p><strong>Tags:</strong> {{ song.tags }}</p>
+        {% if song_tags %}
+        <p><strong>Tags:</strong>
+            {% for tag in song_tags %}
+            <a href="{{ url_for('tag', tag_name=tag.name) }}" class="tag-link">#{{ tag.name }}</a>{% if not loop.last %}, {% endif %}
+            {% endfor %}
+        </p>
         {% endif %}
     </div>
     {% endif %}

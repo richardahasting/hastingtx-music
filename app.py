@@ -120,13 +120,17 @@ def song(identifier):
     comments = Comment.get_by_song(song['id'])
     comment_count = Comment.get_count(song['id'])
 
+    # Get tags for this song
+    song_tags = Tag.get_tags_for_song(song['id'])
+
     return render_template('song.html',
                          song=song,
                          avg_rating=rating_stats['avg_rating'] if rating_stats else None,
                          rating_count=rating_stats['rating_count'] if rating_stats else 0,
                          user_rating=user_rating['rating'] if user_rating else None,
                          comments=comments,
-                         comment_count=comment_count)
+                         comment_count=comment_count,
+                         song_tags=song_tags)
 
 
 @app.route('/music/playlist/<identifier>')
