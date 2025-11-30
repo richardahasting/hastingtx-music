@@ -129,18 +129,24 @@ footer {
 }
 
 .btn-small {
-    padding: 0.4rem 0.8rem;
-    font-size: 0.9rem;
+    padding: 0.5rem 0.7rem;
+    font-size: 1rem;
     text-decoration: none;
-    color: white;
+    color: #ffffff;
     background-color: #3498db;
     border-radius: 3px;
-    display: inline-block;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     margin-right: 0.5rem;
+    min-width: 32px;
+    min-height: 32px;
+    line-height: 1;
 }
 
 .btn-small:hover {
     background-color: #2980b9;
+    color: #ffffff;
 }
 
 /* Song Player Page */
@@ -430,6 +436,19 @@ footer {
 
 .songs-table a:hover {
     text-decoration: underline;
+}
+
+.songs-table a.btn-small {
+    color: #ffffff;
+}
+
+.songs-table a.btn-small:hover {
+    color: #ffffff;
+    text-decoration: none;
+}
+
+.songs-table a.btn-small.btn-download {
+    font-size: 1.1rem;
 }
 
 .song-number {
@@ -917,11 +936,13 @@ footer {
 
 .subscribe-form input[type="email"] {
     flex: 1;
-    padding: 2rem 1.25rem;
+    padding: 0.75rem 1rem;
     border: 2px solid white;
     border-radius: 6px;
-    font-size: 1.1rem;
-    min-width: 300px;
+    font-size: 1rem;
+    min-width: 280px;
+    height: 44px;
+    box-sizing: border-box;
 }
 
 .subscribe-form input[type="email"]::placeholder {
@@ -930,8 +951,10 @@ footer {
 
 .subscribe-form button {
     white-space: nowrap;
-    padding: 2rem 2rem;
-    font-size: 1.1rem;
+    padding: 0.75rem 1.5rem;
+    font-size: 1rem;
+    height: 44px;
+    box-sizing: border-box;
 }
 
 .subscribe-note {

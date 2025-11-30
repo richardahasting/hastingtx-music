@@ -53,10 +53,10 @@
                     <td class="song-duration">{{ song.duration|duration }}</td>
                     <td class="song-actions">
                         <a href="{{ url_for('song', identifier=song.identifier) }}" class="btn-small" title="Play">
-                            ▶
+                            &#9658;
                         </a>
-                        <a href="{{ url_for('download_song', identifier=song.identifier) }}" class="btn-small" title="Download">
-                            ⬇
+                        <a href="{{ url_for('download_song', identifier=song.identifier) }}" class="btn-small btn-download" title="Download">
+                            &#11015;
                         </a>
                     </td>
                 </tr>
