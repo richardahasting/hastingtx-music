@@ -1,6 +1,44 @@
-"""Data models and database operations for songs and playlists."""
+"""Data models and database operations for songs, playlists, and genres."""
 import secrets
 from db import db
+
+
+class Genre:
+    """Genre model and database operations."""
+
+    @staticmethod
+    def get_all():
+        """Get all genres ordered by name."""
+        query = "SELECT * FROM genres ORDER BY name"
+        return db.execute(query)
+
+    @staticmethod
+    def get_by_id(genre_id):
+        """Get a genre by its ID."""
+        query = "SELECT * FROM genres WHERE id = %s"
+        return db.execute_one(query, (genre_id,))
+
+    @staticmethod
+    def get_by_name(name):
+        """Get a genre by its name."""
+        query = "SELECT * FROM genres WHERE name = %s"
+        return db.execute_one(query, (name,))
+
+    @staticmethod
+    def create(name, description=None, parent_genre_id=None):
+        """Create a new genre."""
+        query = """
+            INSERT INTO genres (name, description, parent_genre_id)
+            VALUES (%s, %s, %s)
+            RETURNING *
+        """
+        return db.insert(query, (name, description, parent_genre_id))
+
+    @staticmethod
+    def get_subgenres(parent_id):
+        """Get all subgenres of a parent genre."""
+        query = "SELECT * FROM genres WHERE parent_genre_id = %s ORDER BY name"
+        return db.execute(query, (parent_id,))
 
 
 class Song:
