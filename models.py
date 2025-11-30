@@ -70,25 +70,25 @@ class Tag:
     def set_song_tags(song_id, tag_ids):
         """Set the tags for a song (replaces existing)."""
         # Remove existing tags
-        db.execute("DELETE FROM song_tags WHERE song_id = %s", (song_id,))
+        db.execute("DELETE FROM song_tags WHERE song_id = %s", (song_id,), fetch=False)
         # Add new tags
         for tag_id in tag_ids:
             db.execute(
                 "INSERT INTO song_tags (song_id, tag_id) VALUES (%s, %s) ON CONFLICT DO NOTHING",
-                (song_id, tag_id)
+                (song_id, tag_id), fetch=False
             )
 
     @staticmethod
     def add_song_tag(song_id, tag_id):
         """Add a single tag to a song."""
         query = "INSERT INTO song_tags (song_id, tag_id) VALUES (%s, %s) ON CONFLICT DO NOTHING"
-        db.execute(query, (song_id, tag_id))
+        db.execute(query, (song_id, tag_id), fetch=False)
 
     @staticmethod
     def remove_song_tag(song_id, tag_id):
         """Remove a single tag from a song."""
         query = "DELETE FROM song_tags WHERE song_id = %s AND tag_id = %s"
-        db.execute(query, (song_id, tag_id))
+        db.execute(query, (song_id, tag_id), fetch=False)
 
 
 class Genre:
