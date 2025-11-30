@@ -92,6 +92,18 @@ class Song:
         return db.execute(query, {'term': f'%{search_term}%'})
 
     @staticmethod
+    def get_by_album(album_name):
+        """Get all songs in an album."""
+        query = "SELECT * FROM songs WHERE album = %s ORDER BY title"
+        return db.execute(query, (album_name,))
+
+    @staticmethod
+    def get_distinct_albums():
+        """Get list of distinct album names."""
+        query = "SELECT DISTINCT album FROM songs WHERE album IS NOT NULL AND album != '' ORDER BY album"
+        return db.execute(query)
+
+    @staticmethod
     def increment_listen_count(song_id):
         """Increment the listen count for a song."""
         query = "UPDATE songs SET listen_count = listen_count + 1 WHERE id = %s"
@@ -159,6 +171,34 @@ class Playlist:
         """Get all playlists."""
         query = "SELECT * FROM playlists ORDER BY name"
         return db.execute(query)
+
+    @staticmethod
+    def get_or_create_album_playlist(album_name):
+        """
+        Get or create a playlist for an album.
+
+        Args:
+            album_name: Name of the album
+
+        Returns:
+            Playlist record
+        """
+        # Generate identifier from album name
+        import re
+        identifier = 'album-' + re.sub(r'[^a-z0-9]+', '-', album_name.lower()).strip('-')
+
+        # Check if playlist already exists
+        existing = Playlist.get_by_identifier(identifier)
+        if existing:
+            return existing
+
+        # Create new album playlist
+        return Playlist.create(
+            identifier=identifier,
+            name=album_name,
+            description=f'All songs from the album "{album_name}"',
+            sort_order='title'
+        )
 
     @staticmethod
     def update(playlist_id, **kwargs):

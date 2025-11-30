@@ -136,6 +136,27 @@ def playlist(identifier):
     return render_template('playlist.html', playlist=playlist, songs=songs)
 
 
+@app.route('/music/album/<path:album_name>')
+def album(album_name):
+    """Display all songs from an album."""
+    # Get songs in the album
+    songs = Song.get_by_album(album_name)
+
+    if not songs:
+        abort(404, description=f"Album '{album_name}' not found")
+
+    # Create a virtual playlist object for the template
+    album_playlist = {
+        'id': None,
+        'identifier': 'album-' + album_name.lower().replace(' ', '-'),
+        'name': album_name,
+        'description': f'All songs from the album "{album_name}"',
+        'sort_order': 'title'
+    }
+
+    return render_template('playlist.html', playlist=album_playlist, songs=songs, is_album=True)
+
+
 @app.route('/download/song/<identifier>')
 def download_song(identifier):
     """Download a single MP3 file."""
@@ -304,6 +325,12 @@ def upload():
         all_playlist = Playlist.get_by_identifier('all')
         if all_playlist:
             Playlist.add_song(all_playlist['id'], song['id'])
+
+        # Auto-add to album playlist if album is specified
+        if album:
+            album_playlist = Playlist.get_or_create_album_playlist(album)
+            if album_playlist:
+                Playlist.add_song(album_playlist['id'], song['id'])
 
         # Add to selected playlists
         playlist_ids = request.form.getlist('playlists[]')

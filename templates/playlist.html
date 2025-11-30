@@ -49,7 +49,13 @@
                         </a>
                     </td>
                     <td class="song-artist">{{ song.artist or '-' }}</td>
-                    <td class="song-album">{{ song.album or '-' }}</td>
+                    <td class="song-album">
+                        {% if song.album %}
+                        <a href="{{ url_for('album', album_name=song.album) }}">{{ song.album }}</a>
+                        {% else %}
+                        -
+                        {% endif %}
+                    </td>
                     <td class="song-duration">{{ song.duration|duration }}</td>
                     <td class="song-actions">
                         <a href="{{ url_for('song', identifier=song.identifier) }}" class="btn-small" title="Play">
