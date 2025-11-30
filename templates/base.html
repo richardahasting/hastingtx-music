@@ -32,9 +32,81 @@
 
     <footer>
         <div class="container">
-            <p>&copy; 2025 HastingTX Music. Songs created by Richard &amp; Claude.</p>
+            <div class="footer-content">
+                <div class="footer-info">
+                    <p>&copy; 2025 HastingTX Music. Songs created by Richard &amp; Claude.</p>
+                </div>
+                <div class="footer-subscribe">
+                    <h4>Get Notified of New Songs</h4>
+                    <form id="subscribe-form" class="subscribe-form">
+                        <input type="email" id="subscribe-email" name="email" placeholder="Enter your email" required>
+                        <button type="submit" class="btn btn-primary">Subscribe</button>
+                    </form>
+                    <div id="subscribe-success" class="subscribe-message success-message" style="display: none;">
+                        <p id="subscribe-success-text"></p>
+                    </div>
+                    <div id="subscribe-error" class="subscribe-message error-message" style="display: none;">
+                        <p id="subscribe-error-text"></p>
+                    </div>
+                    <small class="subscribe-note">Weekly updates every Friday at 6 PM</small>
+                </div>
+            </div>
         </div>
     </footer>
+
+    <script>
+    // Subscription form handler
+    const subscribeForm = document.getElementById('subscribe-form');
+    if (subscribeForm) {
+        subscribeForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            const emailInput = document.getElementById('subscribe-email');
+            const email = emailInput.value.trim();
+            const submitBtn = this.querySelector('button[type="submit"]');
+            const successDiv = document.getElementById('subscribe-success');
+            const errorDiv = document.getElementById('subscribe-error');
+            const successText = document.getElementById('subscribe-success-text');
+            const errorText = document.getElementById('subscribe-error-text');
+
+            // Hide previous messages
+            successDiv.style.display = 'none';
+            errorDiv.style.display = 'none';
+
+            // Disable button
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Subscribing...';
+
+            fetch('/api/subscribe', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ email: email })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    successText.textContent = data.message;
+                    successDiv.style.display = 'block';
+                    emailInput.value = '';
+                } else {
+                    errorText.textContent = data.error || 'Subscription failed';
+                    errorDiv.style.display = 'block';
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                errorText.textContent = 'An error occurred. Please try again.';
+                errorDiv.style.display = 'block';
+            })
+            .finally(() => {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Subscribe';
+            });
+        });
+    }
+    </script>
 
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
     {% block extra_js %}{% endblock %}

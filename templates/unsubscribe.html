@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+
+{% block title %}Unsubscribed - HastingTX Music{% endblock %}
+
+{% block content %}
+<div class="upload-page">
+    <h1>Unsubscribed</h1>
+
+    <div class="success-message">
+        <h2>You've been unsubscribed</h2>
+        <p>The email address <strong>{{ email }}</strong> has been removed from our mailing list.</p>
+        <p>You will no longer receive weekly updates about new songs.</p>
+    </div>
+
+    <div class="form-actions" style="margin-top: 2rem;">
+        <a href="{{ url_for('playlist', identifier='all') }}" class="btn btn-primary">Browse Songs</a>
+    </div>
+</div>
+{% endblock %}

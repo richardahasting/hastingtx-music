@@ -90,6 +90,33 @@ CREATE TABLE comments (
 CREATE INDEX idx_comments_song ON comments(song_id, created_at DESC);
 CREATE INDEX idx_comments_ip ON comments(ip_address);
 
+-- Email subscribers table
+CREATE TABLE subscribers (
+    id SERIAL PRIMARY KEY,
+    email VARCHAR(255) UNIQUE NOT NULL,
+    subscribed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    is_active BOOLEAN DEFAULT TRUE,
+    unsubscribe_token VARCHAR(64) UNIQUE NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Indexes for subscribers
+CREATE INDEX idx_subscribers_email ON subscribers(email);
+CREATE INDEX idx_subscribers_active ON subscribers(is_active);
+CREATE INDEX idx_subscribers_token ON subscribers(unsubscribe_token);
+
+-- Email log table to track sent emails
+CREATE TABLE email_logs (
+    id SERIAL PRIMARY KEY,
+    sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    subject VARCHAR(255),
+    recipient_count INTEGER,
+    song_ids INTEGER[],
+    success BOOLEAN DEFAULT TRUE,
+    error_message TEXT
+);
+
 -- Create the 'all' playlist by default
 INSERT INTO playlists (identifier, name, description, sort_order)
 VALUES ('all', 'All Songs', 'Complete collection of all uploaded songs', 'title');

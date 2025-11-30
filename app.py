@@ -9,7 +9,7 @@ from werkzeug.utils import secure_filename
 from PIL import Image
 
 from config import config
-from models import Song, Playlist, Rating, Comment
+from models import Song, Playlist, Rating, Comment, Subscriber, EmailLog
 from utils import (
     allowed_file, generate_identifier, extract_mp3_metadata, write_mp3_metadata,
     save_uploaded_file, is_ip_allowed, format_duration, format_file_size
@@ -628,6 +628,49 @@ def delete_comment(comment_id):
         return jsonify({'success': True})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/subscribe', methods=['POST'])
+def subscribe():
+    """Subscribe to email notifications."""
+    data = request.get_json()
+    email = data.get('email', '').strip().lower()
+
+    if not email:
+        return jsonify({'error': 'Email address is required'}), 400
+
+    # Basic email validation
+    import re
+    email_regex = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+    if not re.match(email_regex, email):
+        return jsonify({'error': 'Invalid email address'}), 400
+
+    try:
+        subscriber = Subscriber.create(email)
+        return jsonify({
+            'success': True,
+            'message': 'Successfully subscribed! You\'ll receive weekly updates about new songs.'
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/unsubscribe/<token>')
+def unsubscribe(token):
+    """Unsubscribe from email notifications."""
+    try:
+        subscriber = Subscriber.get_by_token(token)
+        if not subscriber:
+            return render_template('error.html',
+                                 error="Invalid unsubscribe link",
+                                 code=404), 404
+
+        Subscriber.unsubscribe(token)
+        return render_template('unsubscribe.html', email=subscriber['email'])
+    except Exception as e:
+        return render_template('error.html',
+                             error=str(e),
+                             code=500), 500
 
 
 if __name__ == '__main__':

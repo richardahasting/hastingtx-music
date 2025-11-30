@@ -1,4 +1,5 @@
 """Data models and database operations for songs and playlists."""
+import secrets
 from db import db
 
 
@@ -366,3 +367,104 @@ class Comment:
         query = "SELECT COUNT(*)::integer as count FROM comments WHERE song_id = %s"
         result = db.execute_one(query, (song_id,))
         return result['count'] if result else 0
+
+
+class Subscriber:
+    """Email subscriber model and database operations."""
+
+    @staticmethod
+    def create(email):
+        """
+        Create a new email subscriber.
+
+        Args:
+            email: Email address to subscribe
+
+        Returns:
+            Subscriber record
+        """
+        # Generate unique unsubscribe token
+        unsubscribe_token = secrets.token_urlsafe(32)
+
+        query = """
+            INSERT INTO subscribers (email, unsubscribe_token)
+            VALUES (%s, %s)
+            ON CONFLICT (email)
+            DO UPDATE SET is_active = TRUE, updated_at = CURRENT_TIMESTAMP
+            RETURNING *
+        """
+        return db.insert(query, (email, unsubscribe_token))
+
+    @staticmethod
+    def get_by_email(email):
+        """Get a subscriber by email address."""
+        query = "SELECT * FROM subscribers WHERE email = %s"
+        return db.execute_one(query, (email,))
+
+    @staticmethod
+    def get_by_token(token):
+        """Get a subscriber by unsubscribe token."""
+        query = "SELECT * FROM subscribers WHERE unsubscribe_token = %s"
+        return db.execute_one(query, (token,))
+
+    @staticmethod
+    def get_active_subscribers():
+        """Get all active subscribers."""
+        query = "SELECT * FROM subscribers WHERE is_active = TRUE ORDER BY subscribed_at"
+        return db.execute(query)
+
+    @staticmethod
+    def unsubscribe(token):
+        """Unsubscribe using token."""
+        query = """
+            UPDATE subscribers
+            SET is_active = FALSE, updated_at = CURRENT_TIMESTAMP
+            WHERE unsubscribe_token = %s
+            RETURNING *
+        """
+        return db.insert(query, (token,))
+
+    @staticmethod
+    def get_count():
+        """Get count of active subscribers."""
+        query = "SELECT COUNT(*)::integer as count FROM subscribers WHERE is_active = TRUE"
+        result = db.execute_one(query)
+        return result['count'] if result else 0
+
+
+class EmailLog:
+    """Email log model and database operations."""
+
+    @staticmethod
+    def create(subject, recipient_count, song_ids, success=True, error_message=None):
+        """
+        Log a sent email.
+
+        Args:
+            subject: Email subject
+            recipient_count: Number of recipients
+            song_ids: List of song IDs included in email
+            success: Whether email sent successfully
+            error_message: Error message if failed
+
+        Returns:
+            Log record
+        """
+        query = """
+            INSERT INTO email_logs (subject, recipient_count, song_ids, success, error_message)
+            VALUES (%s, %s, %s, %s, %s)
+            RETURNING *
+        """
+        return db.insert(query, (subject, recipient_count, song_ids, success, error_message))
+
+    @staticmethod
+    def get_last_sent():
+        """Get the most recent email log."""
+        query = "SELECT * FROM email_logs ORDER BY sent_at DESC LIMIT 1"
+        return db.execute_one(query)
+
+    @staticmethod
+    def get_recent_logs(limit=10):
+        """Get recent email logs."""
+        query = "SELECT * FROM email_logs ORDER BY sent_at DESC LIMIT %s"
+        return db.execute(query, (limit,))
