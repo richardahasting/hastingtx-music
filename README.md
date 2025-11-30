@@ -7,11 +7,16 @@ A Flask-based web application for sharing and managing music created by Richard 
 - **Song Management**: Upload, organize, and share MP3 files
 - **Smart Metadata**: Automatic extraction from MP3 ID3 tags
 - **Playlists**: Create and manage custom playlists with flexible sorting
+- **Albums**: Auto-generated album playlists with album navigation dropdown
+- **Genres**: Hierarchical genre system with parent/sub-genre support
 - **Ratings System**: 1-10 star ratings (one vote per IP, shows average after 4+ votes)
 - **Statistics**: Track listens and downloads for each song
 - **Admin Interface**: IP-restricted upload and management interface
 - **Download Options**: Single songs or entire playlists as ZIP files
+- **Email Subscriptions**: Weekly notification of new songs
+- **Hover Tooltips**: Song descriptions and genres shown on hover
 - **Responsive Design**: Mobile-friendly interface
+- **CLI Tool**: Command-line interface for database management
 
 ## Technology Stack
 
@@ -20,6 +25,7 @@ A Flask-based web application for sharing and managing music created by Richard 
 - **Frontend**: HTML5, CSS3, JavaScript
 - **Audio**: HTML5 Audio Player
 - **Metadata**: Mutagen library for MP3 tag reading
+- **CLI**: argparse with tabulate for formatted output
 
 ## Installation
 
@@ -36,35 +42,44 @@ A Flask-based web application for sharing and managing music created by Richard 
    cd /home/richard/projects/hastingtx/music
    ```
 
-2. **Install Python dependencies**
+2. **Create and activate virtual environment**
+   ```bash
+   python3 -m venv venv
+   source venv/bin/activate
+   ```
+
+3. **Install Python dependencies**
    ```bash
    pip install -r requirements.txt
    ```
 
-3. **Configure environment variables**
+4. **Configure environment variables**
    ```bash
    cp .env.example .env
    # Edit .env with your settings
    nano .env
    ```
 
-4. **Set up PostgreSQL database**
+5. **Set up PostgreSQL database**
    ```bash
    # Create database user if needed
    sudo -u postgres createuser -P richard
 
    # Initialize database
    python database/init_db.py
+
+   # Add genres table (if upgrading existing installation)
+   psql -U richard -d hastingtx_music -f database/add_genres.sql
    ```
 
-5. **Configure admin IP whitelist**
+6. **Configure admin IP whitelist**
 
    Edit `.env` and set `ADMIN_IP_WHITELIST` to your home network:
    ```
    ADMIN_IP_WHITELIST=127.0.0.1,::1,192.168.1.0/24,YOUR_PUBLIC_IP
    ```
 
-6. **Run the development server**
+7. **Run the development server**
    ```bash
    python app.py
    ```
@@ -107,16 +122,33 @@ SONGS_PER_PAGE=50
 - **Home/All Songs**: `/` or `/music/playlist/all`
 - **Single Song**: `/music/<identifier>`
 - **Playlist**: `/music/playlist/<identifier>`
+- **Album**: `/music/album/<album_name>`
+- **Genre**: `/music/genre/<genre_name>`
 - **Download Song**: `/download/song/<identifier>`
 - **Download Playlist**: `/download/playlist/<identifier>`
 - **Rate Song**: Click 1-10 rating buttons on song page
+- **Subscribe**: Enter email in the subscription banner for weekly updates
+
+### Navigation Dropdowns
+
+The navigation bar includes dropdown menus for:
+- **Albums**: All albums with songs (click to view album tracks)
+- **Genres**: Only genres that have songs assigned (shows song count)
+- **Playlists**: User-created playlists
+
+### Hover Tooltips
+
+Hovering over a song title in any playlist view will show a tooltip with:
+- Genre (in blue)
+- Description (if available)
 
 ### Admin Access (IP-Restricted)
 
 - **Admin Dashboard**: `/admin`
 - **Upload Song**: `/admin/upload`
+- **Edit Song**: `/admin/songs/<id>/edit`
 - **Create Playlist**: From admin dashboard
-- **Manage Songs**: View stats, delete songs
+- **Manage Songs**: View stats, delete songs, manage playlists
 
 ### Uploading Songs
 
@@ -125,14 +157,16 @@ SONGS_PER_PAGE=50
 3. Fill in song information:
    - **Title** (required) - auto-filled from filename
    - **Artist** (optional) - defaults to "Richard & Claude"
-   - **Album** (optional)
-   - **Genre** (optional)
+   - **Album** (optional) - select existing or create new (case-insensitive duplicate detection)
+   - **Genre** (optional) - select from dropdown with sub-genre support, or create new
    - **Description** (optional)
    - **Lyrics** (optional) - recommended!
    - **Tags** (optional) - comma-separated
    - **Identifier** (optional) - auto-generated from title
 4. Select playlists to add song to
 5. Click "Upload Song"
+
+Songs are automatically added to the "All Songs" playlist and their album playlist (if album specified).
 
 ### Creating Playlists
 
@@ -144,10 +178,78 @@ SONGS_PER_PAGE=50
    - **Sort Order**: manual, title, or album
 4. Click "Create"
 
+## CLI Tool (music-cli.py)
+
+A comprehensive command-line interface for database management:
+
+```bash
+./venv/bin/python music-cli.py <command> <subcommand> [options]
+```
+
+### Song Commands
+```bash
+./venv/bin/python music-cli.py songs list --limit 10
+./venv/bin/python music-cli.py songs show <id>
+./venv/bin/python music-cli.py songs search "keyword"
+./venv/bin/python music-cli.py songs missing description|lyrics|genre
+./venv/bin/python music-cli.py songs lyrics <id>
+./venv/bin/python music-cli.py songs update <id> --title "New Title" --genre "Rock"
+./venv/bin/python music-cli.py songs set-genre <id> "Progressive"
+./venv/bin/python music-cli.py songs set-album <id> "Album Name"
+```
+
+### Playlist Commands
+```bash
+./venv/bin/python music-cli.py playlists list
+./venv/bin/python music-cli.py playlists show <id>
+./venv/bin/python music-cli.py playlists create "New Playlist"
+./venv/bin/python music-cli.py playlists add <playlist_id> <song_id>
+./venv/bin/python music-cli.py playlists remove <playlist_id> <song_id>
+```
+
+### Genre Commands
+```bash
+./venv/bin/python music-cli.py genres list
+./venv/bin/python music-cli.py genres create "New Genre" --parent "Rock" --description "Description"
+./venv/bin/python music-cli.py genres songs "Progressive"
+```
+
+### Album Commands
+```bash
+./venv/bin/python music-cli.py albums list
+./venv/bin/python music-cli.py albums show "Album Name"
+./venv/bin/python music-cli.py albums rename "Old Name" "New Name"
+./venv/bin/python music-cli.py albums merge "Source Album" "Target Album"
+```
+
+### Statistics Commands
+```bash
+./venv/bin/python music-cli.py stats overview
+./venv/bin/python music-cli.py stats top listens|downloads|rating
+./venv/bin/python music-cli.py stats missing
+./venv/bin/python music-cli.py stats activity
+```
+
+### Export Commands
+```bash
+./venv/bin/python music-cli.py export csv songs.csv
+./venv/bin/python music-cli.py export json songs.json
+./venv/bin/python music-cli.py export m3u playlist.m3u --playlist "All Songs"
+```
+
+### Maintenance Commands
+```bash
+./venv/bin/python music-cli.py maintenance duplicates
+./venv/bin/python music-cli.py maintenance orphans
+./venv/bin/python music-cli.py maintenance fix-case
+```
+
 ## URL Structure
 
 - Song pages: `https://hastingtx.org/music/<identifier>`
 - Playlists: `https://hastingtx.org/music/playlist/<identifier>`
+- Albums: `https://hastingtx.org/music/album/<album_name>`
+- Genres: `https://hastingtx.org/music/genre/<genre_name>`
 - Special "all songs" playlist: `https://hastingtx.org/music/playlist/all`
 
 ## Database Schema
@@ -158,6 +260,9 @@ SONGS_PER_PAGE=50
 2. **playlists**: Playlist definitions
 3. **playlist_songs**: Many-to-many relationship between playlists and songs
 4. **ratings**: User ratings (one per IP per song)
+5. **genres**: Hierarchical genre definitions with parent/child relationships
+6. **subscribers**: Email subscribers for new song notifications
+7. **comments**: Song comments (future feature)
 
 See `database/schema.sql` for full schema definition.
 
@@ -231,7 +336,7 @@ sudo systemctl reload nginx
 1. **Use a production WSGI server** (Gunicorn recommended):
    ```bash
    pip install gunicorn
-   gunicorn -w 4 -b 127.0.0.1:5000 app:app
+   gunicorn -w 4 -b 127.0.0.1:5000 --timeout 300 app:app
    ```
 
 2. **Create a systemd service** (`/etc/systemd/system/hastingtx-music.service`):
@@ -244,20 +349,28 @@ sudo systemctl reload nginx
    User=richard
    WorkingDirectory=/home/richard/projects/hastingtx/music
    Environment="PATH=/home/richard/projects/hastingtx/music/venv/bin"
-   ExecStart=/home/richard/projects/hastingtx/music/venv/bin/gunicorn -w 4 -b 127.0.0.1:5000 app:app
+   ExecStart=/home/richard/projects/hastingtx/music/venv/bin/gunicorn -w 4 -b 127.0.0.1:5000 --timeout 300 --access-logfile /var/log/hastingtx-music/access.log --error-logfile /var/log/hastingtx-music/error.log app:app
+   Restart=always
 
    [Install]
    WantedBy=multi-user.target
    ```
 
-3. **Enable and start the service**:
+3. **Create log directory**:
    ```bash
+   sudo mkdir -p /var/log/hastingtx-music
+   sudo chown richard:richard /var/log/hastingtx-music
+   ```
+
+4. **Enable and start the service**:
+   ```bash
+   sudo systemctl daemon-reload
    sudo systemctl enable hastingtx-music
    sudo systemctl start hastingtx-music
    sudo systemctl status hastingtx-music
    ```
 
-4. **Set environment to production**:
+5. **Set environment to production**:
    Update `.env`:
    ```
    FLASK_ENV=production
@@ -271,6 +384,7 @@ sudo systemctl reload nginx
 - 50MB maximum file size
 - CSRF protection via Flask session
 - SQL injection prevention via parameterized queries
+- Case-insensitive duplicate detection for albums and genres
 
 ## Troubleshooting
 
@@ -294,6 +408,10 @@ sudo systemctl reload nginx
 - Check browser console for errors
 - Ensure file exists in static/uploads
 
+### CSS Not Updating
+- Clear browser cache or use incognito mode
+- Check that cache-busting query string is updated in base.html
+
 ## Development
 
 ### Project Structure
@@ -301,28 +419,32 @@ sudo systemctl reload nginx
 ```
 music/
 ├── app.py                 # Main Flask application
-├── config.py             # Configuration management
-├── db.py                 # Database connection
-├── models.py             # Data models (Song, Playlist, Rating)
-├── utils.py              # Utility functions
-├── requirements.txt      # Python dependencies
-├── .env.example          # Environment template
+├── config.py              # Configuration management
+├── db.py                  # Database connection
+├── models.py              # Data models (Song, Playlist, Genre, Rating)
+├── utils.py               # Utility functions
+├── music-cli.py           # CLI tool for database management
+├── requirements.txt       # Python dependencies
+├── .env.example           # Environment template
 ├── database/
-│   ├── schema.sql        # Database schema
-│   └── init_db.py        # Database initialization script
+│   ├── schema.sql         # Database schema
+│   ├── add_genres.sql     # Genres migration script
+│   └── init_db.py         # Database initialization script
 ├── static/
 │   ├── css/
-│   │   └── style.css     # Stylesheet
+│   │   └── style.css      # Stylesheet
 │   ├── js/
-│   │   └── main.js       # JavaScript utilities
-│   └── uploads/          # MP3 file storage
+│   │   └── main.js        # JavaScript utilities
+│   └── uploads/           # MP3 file storage
+│       └── covers/        # Cover art images
 └── templates/
-    ├── base.html         # Base template
-    ├── song.html         # Song player page
-    ├── playlist.html     # Playlist page
-    ├── upload.html       # Upload interface
-    ├── admin.html        # Admin dashboard
-    └── error.html        # Error page
+    ├── base.html          # Base template with navigation
+    ├── song.html          # Song player page
+    ├── playlist.html      # Playlist/Album/Genre view
+    ├── upload.html        # Upload interface
+    ├── edit_song.html     # Song editor
+    ├── admin.html         # Admin dashboard
+    └── error.html         # Error page
 ```
 
 ## License
