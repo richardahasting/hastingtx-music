@@ -57,8 +57,51 @@
                 </div>
 
                 <div class="form-group">
-                    <label for="genre">Genre</label>
-                    <input type="text" id="genre" name="genre">
+                    <label for="genre-select">Genre</label>
+                    <select id="genre-select" onchange="handleGenreSelect()">
+                        <option value="">-- Select Genre --</option>
+                        {% for genre in genres %}
+                        {% if not genre.parent_genre_id %}
+                        <option value="{{ genre.name }}">{{ genre.name }}</option>
+                        {% endif %}
+                        {% endfor %}
+                        <option value="__new__">+ Create New Genre</option>
+                    </select>
+                    <input type="hidden" id="genre-hidden" name="genre">
+
+                    <!-- Sub-genre selector (shown when parent genre selected) -->
+                    <div id="subgenre-container" style="display: none; margin-top: 0.5rem;">
+                        <label for="subgenre-select">Sub-genre (optional)</label>
+                        <select id="subgenre-select" onchange="handleSubgenreSelect()">
+                            <option value="">-- No sub-genre --</option>
+                        </select>
+                    </div>
+
+                    <!-- New genre form -->
+                    <div id="new-genre-form" style="display: none; margin-top: 0.5rem; padding: 1rem; background: #f8f9fa; border-radius: 4px;">
+                        <div class="form-group">
+                            <label for="new-genre-name">New Genre Name *</label>
+                            <input type="text" id="new-genre-name" placeholder="Enter genre name">
+                        </div>
+                        <div class="form-group">
+                            <label for="new-genre-parent">Parent Genre (for sub-genre)</label>
+                            <select id="new-genre-parent">
+                                <option value="">-- None (top-level genre) --</option>
+                                {% for genre in genres %}
+                                {% if not genre.parent_genre_id %}
+                                <option value="{{ genre.id }}">{{ genre.name }}</option>
+                                {% endif %}
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="new-genre-desc">Description (optional)</label>
+                            <input type="text" id="new-genre-desc" placeholder="Brief description">
+                        </div>
+                        <button type="button" class="btn btn-small" onclick="createNewGenre()">Create Genre</button>
+                        <button type="button" class="btn btn-small btn-secondary" onclick="cancelNewGenre()">Cancel</button>
+                        <div id="genre-create-status" style="margin-top: 0.5rem;"></div>
+                    </div>
                 </div>
 
                 <div class="form-group">
@@ -211,6 +254,155 @@ document.getElementById('album-new').addEventListener('input', function() {
         hiddenInput.value = newAlbum;
     }
 });
+
+// Genre data from server
+let allGenres = [
+    {% for genre in genres %}
+    {id: {{ genre.id }}, name: "{{ genre.name }}", parent_genre_id: {{ genre.parent_genre_id or 'null' }}},
+    {% endfor %}
+];
+
+// Genre selection handling
+function handleGenreSelect() {
+    const select = document.getElementById('genre-select');
+    const hiddenInput = document.getElementById('genre-hidden');
+    const newGenreForm = document.getElementById('new-genre-form');
+    const subgenreContainer = document.getElementById('subgenre-container');
+
+    if (select.value === '__new__') {
+        newGenreForm.style.display = 'block';
+        subgenreContainer.style.display = 'none';
+        hiddenInput.value = '';
+    } else if (select.value) {
+        newGenreForm.style.display = 'none';
+        hiddenInput.value = select.value;
+
+        // Check if this genre has sub-genres
+        const subgenres = allGenres.filter(g => {
+            const parent = allGenres.find(p => p.name === select.value);
+            return parent && g.parent_genre_id === parent.id;
+        });
+
+        if (subgenres.length > 0) {
+            populateSubgenres(subgenres);
+            subgenreContainer.style.display = 'block';
+        } else {
+            subgenreContainer.style.display = 'none';
+        }
+    } else {
+        newGenreForm.style.display = 'none';
+        subgenreContainer.style.display = 'none';
+        hiddenInput.value = '';
+    }
+}
+
+function populateSubgenres(subgenres) {
+    const select = document.getElementById('subgenre-select');
+    select.innerHTML = '<option value="">-- No sub-genre --</option>';
+    for (const sg of subgenres) {
+        const option = document.createElement('option');
+        option.value = sg.name;
+        option.textContent = sg.name;
+        select.appendChild(option);
+    }
+}
+
+function handleSubgenreSelect() {
+    const genreSelect = document.getElementById('genre-select');
+    const subgenreSelect = document.getElementById('subgenre-select');
+    const hiddenInput = document.getElementById('genre-hidden');
+
+    if (subgenreSelect.value) {
+        // Use subgenre as the genre value
+        hiddenInput.value = subgenreSelect.value;
+    } else {
+        // Use parent genre
+        hiddenInput.value = genreSelect.value;
+    }
+}
+
+async function createNewGenre() {
+    const name = document.getElementById('new-genre-name').value.trim();
+    const parentId = document.getElementById('new-genre-parent').value || null;
+    const description = document.getElementById('new-genre-desc').value.trim();
+    const status = document.getElementById('genre-create-status');
+
+    if (!name) {
+        status.innerHTML = '<span class="warning-alert">Genre name is required</span>';
+        return;
+    }
+
+    status.innerHTML = 'Creating...';
+
+    try {
+        const response = await fetch('/api/genres', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                name: name,
+                description: description || null,
+                parent_genre_id: parentId ? parseInt(parentId) : null
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            // Add to local genres array
+            allGenres.push(data.genre);
+
+            // Add to appropriate select
+            const genreSelect = document.getElementById('genre-select');
+            const parentSelect = document.getElementById('new-genre-parent');
+
+            if (parentId) {
+                // It's a sub-genre - update the parent's subgenre list if visible
+                status.innerHTML = `<span class="warning-info">Sub-genre "${name}" created!</span>`;
+            } else {
+                // Top-level genre - add to main select before the "Create New" option
+                const newOption = document.createElement('option');
+                newOption.value = name;
+                newOption.textContent = name;
+                const createOption = genreSelect.querySelector('option[value="__new__"]');
+                genreSelect.insertBefore(newOption, createOption);
+
+                // Also add to parent genre select
+                const parentOption = document.createElement('option');
+                parentOption.value = data.genre.id;
+                parentOption.textContent = name;
+                parentSelect.appendChild(parentOption);
+
+                status.innerHTML = `<span class="warning-info">Genre "${name}" created!</span>`;
+            }
+
+            // Select the new genre
+            document.getElementById('genre-hidden').value = name;
+
+            // Clear form after short delay
+            setTimeout(() => {
+                document.getElementById('new-genre-name').value = '';
+                document.getElementById('new-genre-desc').value = '';
+                document.getElementById('new-genre-parent').value = '';
+                document.getElementById('new-genre-form').style.display = 'none';
+                genreSelect.value = name;
+            }, 1500);
+        } else {
+            status.innerHTML = `<span class="warning-alert">${data.error}</span>`;
+        }
+    } catch (error) {
+        status.innerHTML = `<span class="warning-alert">Error: ${error.message}</span>`;
+    }
+}
+
+function cancelNewGenre() {
+    document.getElementById('new-genre-form').style.display = 'none';
+    document.getElementById('genre-select').value = '';
+    document.getElementById('genre-hidden').value = '';
+    document.getElementById('new-genre-name').value = '';
+    document.getElementById('new-genre-desc').value = '';
+    document.getElementById('new-genre-parent').value = '';
+    document.getElementById('genre-create-status').innerHTML = '';
+}
 
 // Drag and drop handlers
 dropZone.addEventListener('click', () => fileInput.click());

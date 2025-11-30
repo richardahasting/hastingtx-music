@@ -9,7 +9,7 @@ from werkzeug.utils import secure_filename
 from PIL import Image
 
 from config import config
-from models import Song, Playlist, Rating, Comment, Subscriber, EmailLog
+from models import Song, Playlist, Rating, Comment, Subscriber, EmailLog, Genre
 from utils import (
     allowed_file, generate_identifier, extract_mp3_metadata, write_mp3_metadata,
     save_uploaded_file, is_ip_allowed, format_duration, format_file_size
@@ -238,7 +238,8 @@ def upload():
         playlists = Playlist.get_all()
         albums = Song.get_distinct_albums()
         album_names = [a['album'] for a in albums if a['album']]
-        return render_template('upload.html', playlists=playlists, albums=album_names)
+        genres = Genre.get_all()
+        return render_template('upload.html', playlists=playlists, albums=album_names, genres=genres)
 
     # Handle POST - file upload
     if 'file' not in request.files:
@@ -709,6 +710,38 @@ def delete_comment(comment_id):
 
         Comment.delete(comment_id)
         return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/genres')
+def api_genres():
+    """Get all genres as JSON."""
+    genres = Genre.get_all()
+    return jsonify([dict(g) for g in genres])
+
+
+@app.route('/api/genres', methods=['POST'])
+@require_admin_ip
+def create_genre():
+    """Create a new genre."""
+    data = request.get_json()
+    name = data.get('name', '').strip()
+    description = data.get('description', '').strip() or None
+    parent_genre_id = data.get('parent_genre_id')
+
+    if not name:
+        return jsonify({'error': 'Genre name is required'}), 400
+
+    # Check for case-insensitive duplicate
+    existing = Genre.get_all()
+    for g in existing:
+        if g['name'].lower() == name.lower():
+            return jsonify({'error': f'Genre "{g["name"]}" already exists'}), 400
+
+    try:
+        genre = Genre.create(name, description, parent_genre_id)
+        return jsonify({'success': True, 'genre': dict(genre)})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
