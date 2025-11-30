@@ -38,7 +38,7 @@ def require_admin_ip(f):
 # Template context processor
 @app.context_processor
 def inject_admin_status():
-    """Make admin IP status, playlists, and albums available to all templates."""
+    """Make admin IP status, playlists, albums, and genres available to all templates."""
     client_ip = request.remote_addr
     is_admin = is_ip_allowed(client_ip, config.ADMIN_IP_WHITELIST)
     # Get all playlists for navigation (exclude 'all' as it's shown separately)
@@ -47,7 +47,9 @@ def inject_admin_status():
     # Get distinct albums for navigation
     albums = Song.get_distinct_albums()
     nav_albums = [a['album'] for a in albums if a['album']]
-    return dict(is_admin_ip=is_admin, nav_playlists=nav_playlists, nav_albums=nav_albums)
+    # Get genres that have songs for navigation
+    nav_genres = Genre.get_with_songs()
+    return dict(is_admin_ip=is_admin, nav_playlists=nav_playlists, nav_albums=nav_albums, nav_genres=nav_genres)
 
 
 # Template filters
@@ -161,6 +163,31 @@ def album(album_name):
     }
 
     return render_template('playlist.html', playlist=album_playlist, songs=songs, is_album=True)
+
+
+@app.route('/music/genre/<path:genre_name>')
+def genre(genre_name):
+    """Display all songs in a genre."""
+    # Get songs in the genre
+    songs = Song.get_by_genre(genre_name)
+
+    if not songs:
+        abort(404, description=f"Genre '{genre_name}' not found or has no songs")
+
+    # Get genre info for description
+    genre_info = Genre.get_by_name(genre_name)
+    genre_desc = genre_info['description'] if genre_info else None
+
+    # Create a virtual playlist object for the template
+    genre_playlist = {
+        'id': None,
+        'identifier': 'genre-' + genre_name.lower().replace(' ', '-'),
+        'name': genre_name,
+        'description': genre_desc or f'All songs in the {genre_name} genre',
+        'sort_order': 'title'
+    }
+
+    return render_template('playlist.html', playlist=genre_playlist, songs=songs, is_genre=True)
 
 
 @app.route('/download/song/<identifier>')

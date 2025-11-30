@@ -40,6 +40,18 @@ class Genre:
         query = "SELECT * FROM genres WHERE parent_genre_id = %s ORDER BY name"
         return db.execute(query, (parent_id,))
 
+    @staticmethod
+    def get_with_songs():
+        """Get all genres that have at least one song, with song count."""
+        query = """
+            SELECT g.*, COUNT(s.id) as song_count
+            FROM genres g
+            INNER JOIN songs s ON s.genre = g.name
+            GROUP BY g.id
+            ORDER BY g.name
+        """
+        return db.execute(query)
+
 
 class Song:
     """Song model and database operations."""
@@ -134,6 +146,12 @@ class Song:
         """Get all songs in an album (case-insensitive match)."""
         query = "SELECT * FROM songs WHERE LOWER(album) = LOWER(%s) ORDER BY title"
         return db.execute(query, (album_name,))
+
+    @staticmethod
+    def get_by_genre(genre_name):
+        """Get all songs in a genre."""
+        query = "SELECT * FROM songs WHERE genre = %s ORDER BY title"
+        return db.execute(query, (genre_name,))
 
     @staticmethod
     def get_distinct_albums():
