@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}HastingTX Music{% endblock %}</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=20251129g">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=20251129h">
     {% block extra_css %}{% endblock %}
 </head>
 <body>
@@ -16,6 +16,16 @@
                 </h1>
                 <ul class="nav-links">
                     <li><a href="{{ url_for('playlist', identifier='all') }}">All Songs</a></li>
+                    {% if nav_playlists %}
+                    <li class="nav-dropdown">
+                        <a href="#" class="dropdown-toggle">Playlists ▾</a>
+                        <ul class="dropdown-menu">
+                            {% for pl in nav_playlists %}
+                            <li><a href="{{ url_for('playlist', identifier=pl.identifier) }}">{{ pl.name }}</a></li>
+                            {% endfor %}
+                        </ul>
+                    </li>
+                    {% endif %}
                     {% if is_admin_ip %}
                     <li><a href="{{ url_for('upload') }}" class="admin-link">Upload</a></li>
                     <li><a href="{{ url_for('admin') }}" class="admin-link">Admin</a></li>

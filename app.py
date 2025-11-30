@@ -38,10 +38,13 @@ def require_admin_ip(f):
 # Template context processor
 @app.context_processor
 def inject_admin_status():
-    """Make admin IP status available to all templates."""
+    """Make admin IP status and playlists available to all templates."""
     client_ip = request.remote_addr
     is_admin = is_ip_allowed(client_ip, config.ADMIN_IP_WHITELIST)
-    return dict(is_admin_ip=is_admin)
+    # Get all playlists for navigation (exclude 'all' as it's shown separately)
+    all_playlists = Playlist.get_all()
+    nav_playlists = [p for p in all_playlists if p['identifier'] != 'all']
+    return dict(is_admin_ip=is_admin, nav_playlists=nav_playlists)
 
 
 # Template filters
