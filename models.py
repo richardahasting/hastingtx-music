@@ -93,14 +93,23 @@ class Song:
 
     @staticmethod
     def get_by_album(album_name):
-        """Get all songs in an album."""
-        query = "SELECT * FROM songs WHERE album = %s ORDER BY title"
+        """Get all songs in an album (case-insensitive match)."""
+        query = "SELECT * FROM songs WHERE LOWER(album) = LOWER(%s) ORDER BY title"
         return db.execute(query, (album_name,))
 
     @staticmethod
     def get_distinct_albums():
-        """Get list of distinct album names."""
-        query = "SELECT DISTINCT album FROM songs WHERE album IS NOT NULL AND album != '' ORDER BY album"
+        """Get list of distinct album names (case-insensitive)."""
+        query = """
+            SELECT album FROM (
+                SELECT album, LOWER(album) as album_lower,
+                       ROW_NUMBER() OVER (PARTITION BY LOWER(album) ORDER BY album) as rn
+                FROM songs
+                WHERE album IS NOT NULL AND album != ''
+            ) sub
+            WHERE rn = 1
+            ORDER BY album
+        """
         return db.execute(query)
 
     @staticmethod
