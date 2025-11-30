@@ -30,13 +30,15 @@ music/
 ├── app.py                 # Main Flask application with all routes
 ├── config.py             # Configuration from environment variables
 ├── db.py                 # PostgreSQL connection management
-├── models.py             # Data models: Song, Playlist, Rating
+├── models.py             # Data models: Song, Playlist, Genre, Rating
 ├── utils.py              # Utilities: MP3 metadata, file handling, IP checking
+├── music-cli.py          # CLI tool for database management
 ├── requirements.txt      # Python dependencies
 ├── .env                  # Environment configuration (not in git)
 ├── .env.example          # Environment template
 ├── database/
 │   ├── schema.sql        # PostgreSQL schema with all tables
+│   ├── add_genres.sql    # Migration script for genres table
 │   └── init_db.py        # Database initialization script
 ├── static/
 │   ├── css/style.css     # Main stylesheet
@@ -60,6 +62,7 @@ music/
 2. **playlists**: Playlist definitions with sort order settings
 3. **playlist_songs**: Many-to-many junction table with position field
 4. **ratings**: User ratings (song_id + ip_address unique constraint)
+5. **genres**: Predefined music genres with optional parent for subgenres
 
 ### Key Relationships
 - Song can be in multiple playlists (many-to-many)
@@ -145,6 +148,87 @@ sudo systemctl reload nginx
 # Set up systemd service (see README.md)
 sudo systemctl enable hastingtx-music
 sudo systemctl start hastingtx-music
+```
+
+### CLI Tool (music-cli.py)
+
+The CLI provides comprehensive database management capabilities. Run with the venv Python:
+
+```bash
+./venv/bin/python music-cli.py <command> <subcommand> [options]
+```
+
+#### Song Commands
+```bash
+# List all songs (with optional limit)
+./venv/bin/python music-cli.py songs list --limit 10
+
+# Show detailed song info
+./venv/bin/python music-cli.py songs show <id>
+
+# Search songs by title/artist/album
+./venv/bin/python music-cli.py songs search "keyword"
+
+# Find songs missing specific fields
+./venv/bin/python music-cli.py songs missing description
+./venv/bin/python music-cli.py songs missing lyrics
+./venv/bin/python music-cli.py songs missing genre
+
+# View song lyrics
+./venv/bin/python music-cli.py songs lyrics <id>
+
+# Update song fields
+./venv/bin/python music-cli.py songs update <id> --title "New Title" --genre "Rock"
+./venv/bin/python music-cli.py songs set-genre <id> "Progressive"
+./venv/bin/python music-cli.py songs set-album <id> "Album Name"
+```
+
+#### Playlist Commands
+```bash
+./venv/bin/python music-cli.py playlists list
+./venv/bin/python music-cli.py playlists show <id>
+./venv/bin/python music-cli.py playlists create "New Playlist"
+./venv/bin/python music-cli.py playlists add <playlist_id> <song_id>
+./venv/bin/python music-cli.py playlists remove <playlist_id> <song_id>
+```
+
+#### Genre Commands
+```bash
+./venv/bin/python music-cli.py genres list
+./venv/bin/python music-cli.py genres create "New Genre" --parent "Rock" --description "Description"
+./venv/bin/python music-cli.py genres songs "Progressive"  # List songs in genre
+```
+
+#### Album Commands
+```bash
+./venv/bin/python music-cli.py albums list
+./venv/bin/python music-cli.py albums show "Album Name"
+./venv/bin/python music-cli.py albums rename "Old Name" "New Name"
+./venv/bin/python music-cli.py albums merge "Source Album" "Target Album"
+```
+
+#### Statistics Commands
+```bash
+./venv/bin/python music-cli.py stats overview          # Database overview
+./venv/bin/python music-cli.py stats top listens       # Top songs by listens
+./venv/bin/python music-cli.py stats top downloads     # Top songs by downloads
+./venv/bin/python music-cli.py stats top rating        # Top rated songs
+./venv/bin/python music-cli.py stats missing           # Summary of missing data
+./venv/bin/python music-cli.py stats activity          # Recent activity
+```
+
+#### Export Commands
+```bash
+./venv/bin/python music-cli.py export csv songs.csv
+./venv/bin/python music-cli.py export json songs.json
+./venv/bin/python music-cli.py export m3u playlist.m3u --playlist "All Songs"
+```
+
+#### Maintenance Commands
+```bash
+./venv/bin/python music-cli.py maintenance duplicates  # Find duplicate songs
+./venv/bin/python music-cli.py maintenance orphans     # Find orphaned files
+./venv/bin/python music-cli.py maintenance fix-case    # Fix case inconsistencies
 ```
 
 ## Configuration
