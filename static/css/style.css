@@ -638,6 +638,29 @@ footer {
     gap: 1rem;
 }
 
+/* Fixed form actions for upload/edit pages */
+.upload-page .form-actions {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    margin: 0;
+    padding: 1rem 2rem;
+    background: linear-gradient(to top, #2c3e50 0%, #34495e 100%);
+    box-shadow: 0 -4px 12px rgba(0,0,0,0.3);
+    z-index: 1000;
+    justify-content: center;
+}
+
+.upload-page .form-actions .btn {
+    min-width: 150px;
+}
+
+/* Add padding to form container so content isn't hidden behind fixed bar */
+.upload-page form {
+    padding-bottom: 80px;
+}
+
 .success-message,
 .error-message {
     text-align: center;
