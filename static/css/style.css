@@ -879,71 +879,99 @@ footer {
     margin-top: 1rem;
 }
 
-/* Footer Subscription */
-.footer-content {
+/* Subscription Banner */
+.subscribe-banner {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    padding: 2rem 0;
+    margin-bottom: 2rem;
+}
+
+.subscribe-banner-content {
     display: flex;
     justify-content: space-between;
-    align-items: flex-start;
+    align-items: center;
     gap: 2rem;
     flex-wrap: wrap;
 }
 
-.footer-info {
-    flex: 1;
+.subscribe-banner-text {
+    flex: 0 0 auto;
 }
 
-.footer-subscribe {
-    flex: 1;
-    min-width: 300px;
-}
-
-.footer-subscribe h4 {
-    margin-bottom: 1rem;
+.subscribe-banner-text h3 {
     color: white;
+    margin: 0 0 0.5rem 0;
+    font-size: 1.5rem;
+}
+
+.subscribe-banner-form {
+    flex: 1;
+    min-width: 400px;
 }
 
 .subscribe-form {
     display: flex;
-    gap: 0.5rem;
+    gap: 0.75rem;
     margin-bottom: 0.5rem;
 }
 
 .subscribe-form input[type="email"] {
     flex: 1;
-    padding: 0.75rem;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    font-size: 1rem;
+    padding: 1rem 1.25rem;
+    border: 2px solid white;
+    border-radius: 6px;
+    font-size: 1.1rem;
+    min-width: 300px;
+}
+
+.subscribe-form input[type="email"]::placeholder {
+    color: #95a5a6;
 }
 
 .subscribe-form button {
     white-space: nowrap;
+    padding: 1rem 2rem;
+    font-size: 1.1rem;
 }
 
 .subscribe-note {
     display: block;
-    color: #95a5a6;
-    font-size: 0.85rem;
-    margin-top: 0.5rem;
+    color: rgba(255, 255, 255, 0.9);
+    font-size: 0.9rem;
+    margin-top: 0.25rem;
 }
 
 .subscribe-message {
     margin-top: 0.75rem;
-    padding: 0.75rem;
+    padding: 0.75rem 1rem;
     border-radius: 4px;
     font-size: 0.9rem;
 }
 
 @media (max-width: 768px) {
-    .footer-content {
+    .subscribe-banner-content {
         flex-direction: column;
+        text-align: center;
+    }
+
+    .subscribe-banner-text h3 {
+        font-size: 1.3rem;
+    }
+
+    .subscribe-banner-form {
+        min-width: 100%;
+        width: 100%;
     }
 
     .subscribe-form {
         flex-direction: column;
     }
 
-    .subscribe-form input[type="email"],
+    .subscribe-form input[type="email"] {
+        width: 100%;
+        min-width: 100%;
+    }
+
     .subscribe-form button {
         width: 100%;
     }

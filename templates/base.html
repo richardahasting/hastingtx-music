@@ -26,20 +26,16 @@
         </nav>
     </header>
 
-    <main class="container">
-        {% block content %}{% endblock %}
-    </main>
-
-    <footer>
+    <div class="subscribe-banner">
         <div class="container">
-            <div class="footer-content">
-                <div class="footer-info">
-                    <p>&copy; 2025 HastingTX Music. Songs created by Richard &amp; Claude.</p>
+            <div class="subscribe-banner-content">
+                <div class="subscribe-banner-text">
+                    <h3>Get Notified of New Songs</h3>
+                    <small class="subscribe-note">Weekly updates every Friday at 6 PM</small>
                 </div>
-                <div class="footer-subscribe">
-                    <h4>Get Notified of New Songs</h4>
+                <div class="subscribe-banner-form">
                     <form id="subscribe-form" class="subscribe-form">
-                        <input type="email" id="subscribe-email" name="email" placeholder="Enter your email" required>
+                        <input type="email" id="subscribe-email" name="email" placeholder="Enter your email address" required>
                         <button type="submit" class="btn btn-primary">Subscribe</button>
                     </form>
                     <div id="subscribe-success" class="subscribe-message success-message" style="display: none;">
@@ -48,9 +44,18 @@
                     <div id="subscribe-error" class="subscribe-message error-message" style="display: none;">
                         <p id="subscribe-error-text"></p>
                     </div>
-                    <small class="subscribe-note">Weekly updates every Friday at 6 PM</small>
                 </div>
             </div>
+        </div>
+    </div>
+
+    <main class="container">
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2025 HastingTX Music. Songs created by Richard &amp; Claude.</p>
         </div>
     </footer>
 
