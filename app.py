@@ -361,7 +361,9 @@ def edit_song(song_id):
 
     if request.method == 'GET':
         playlists = Playlist.get_all()
-        return render_template('edit_song.html', song=song, playlists=playlists)
+        song_playlists = Playlist.get_playlists_for_song(song_id)
+        song_playlist_ids = [p['id'] for p in song_playlists]
+        return render_template('edit_song.html', song=song, playlists=playlists, song_playlist_ids=song_playlist_ids)
 
     # Handle POST - update metadata
     try:
@@ -426,6 +428,11 @@ def edit_song(song_id):
             song_data['cover_art_path'] = os.path.join(cover_art_dir, updated_song['cover_art'])
 
         write_mp3_metadata(filepath, song_data, song_url=song_url)
+
+        # Update playlist memberships
+        playlist_ids = request.form.getlist('playlists[]')
+        playlist_ids = [int(pid) for pid in playlist_ids if pid]
+        Playlist.set_song_playlists(song_id, playlist_ids)
 
         return jsonify({
             'success': True,
@@ -516,6 +523,36 @@ def reorder_playlist(playlist_id):
         return jsonify({'error': str(e)}), 500
 
 
+@app.route('/admin/playlists/<int:playlist_id>/set_songs', methods=['POST'])
+@require_admin_ip
+def set_playlist_songs(playlist_id):
+    """Set which songs are in a playlist."""
+    data = request.get_json()
+    song_ids = data.get('song_ids', [])
+
+    try:
+        playlist = Playlist.get_by_id(playlist_id)
+        if not playlist:
+            return jsonify({'error': 'Playlist not found'}), 404
+
+        # Get current songs
+        current_songs = Playlist.get_songs(playlist_id)
+        current_ids = {s['id'] for s in current_songs}
+        new_ids = set(song_ids)
+
+        # Remove songs no longer in list
+        for song_id in current_ids - new_ids:
+            Playlist.remove_song(playlist_id, song_id)
+
+        # Add new songs
+        for song_id in new_ids - current_ids:
+            Playlist.add_song(playlist_id, song_id)
+
+        return jsonify({'success': True, 'count': len(song_ids)})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
 @app.route('/admin/playlists/<int:playlist_id>', methods=['DELETE'])
 @require_admin_ip
 def delete_playlist(playlist_id):
@@ -576,6 +613,17 @@ def api_playlist_songs(identifier):
         songs = Playlist.get_songs(playlist['id'])
 
     return jsonify([dict(song) for song in songs])
+
+
+@app.route('/api/playlists/<int:playlist_id>/song_ids')
+def api_playlist_song_ids(playlist_id):
+    """Get song IDs in a playlist as JSON."""
+    playlist = Playlist.get_by_id(playlist_id)
+    if not playlist:
+        return jsonify({'error': 'Playlist not found'}), 404
+
+    songs = Playlist.get_songs(playlist_id)
+    return jsonify({'song_ids': [song['id'] for song in songs]})
 
 
 @app.route('/api/songs/<int:song_id>/rate', methods=['POST'])

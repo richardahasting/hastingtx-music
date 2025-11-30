@@ -115,13 +115,28 @@
                             {{ playlist.name }}
                         </a>
                     </td>
-                    <td>-</td>
+                    <td><span id="playlist-count-{{ playlist.id }}">-</span></td>
                     <td>{{ playlist.sort_order }}</td>
                     <td>
                         <a href="{{ url_for('playlist', identifier=playlist.identifier) }}" class="btn-small">View</a>
+                        <button class="btn-small" onclick="toggleManageSongs({{ playlist.id }}, '{{ playlist.name }}')">Manage Songs</button>
                         {% if playlist.identifier != 'all' %}
                         <button class="btn-small btn-danger" onclick="deletePlaylist({{ playlist.id }}, '{{ playlist.name }}')">Delete</button>
                         {% endif %}
+                    </td>
+                </tr>
+                <tr id="manage-songs-{{ playlist.id }}" class="manage-songs-row" style="display: none;">
+                    <td colspan="4">
+                        <div class="manage-songs-container">
+                            <h4>Manage Songs in "{{ playlist.name }}"</h4>
+                            <div class="songs-checkbox-list" id="songs-list-{{ playlist.id }}">
+                                Loading...
+                            </div>
+                            <div class="manage-songs-actions">
+                                <button class="btn btn-primary" onclick="savePlaylistSongs({{ playlist.id }})">Save Changes</button>
+                                <button class="btn btn-secondary" onclick="toggleManageSongs({{ playlist.id }})">Cancel</button>
+                            </div>
+                        </div>
                     </td>
                 </tr>
                 {% endfor %}
@@ -216,6 +231,84 @@ async function deletePlaylist(playlistId, name) {
         }
     } catch (error) {
         alert('Error deleting playlist: ' + error.message);
+    }
+}
+
+// All songs data (cached)
+let allSongs = null;
+
+async function getAllSongs() {
+    if (allSongs) return allSongs;
+    const response = await fetch('/api/songs');
+    allSongs = await response.json();
+    return allSongs;
+}
+
+async function toggleManageSongs(playlistId, playlistName) {
+    const row = document.getElementById(`manage-songs-${playlistId}`);
+    const isVisible = row.style.display !== 'none';
+
+    if (isVisible) {
+        row.style.display = 'none';
+        return;
+    }
+
+    // Show the row
+    row.style.display = 'table-row';
+
+    // Load songs if not already loaded
+    const container = document.getElementById(`songs-list-${playlistId}`);
+    if (container.innerHTML === 'Loading...') {
+        try {
+            const [songs, playlistData] = await Promise.all([
+                getAllSongs(),
+                fetch(`/api/playlists/${playlistId}/song_ids`).then(r => r.json())
+            ]);
+
+            const playlistSongIds = new Set(playlistData.song_ids);
+
+            let html = '<div class="checkbox-grid">';
+            for (const song of songs) {
+                const checked = playlistSongIds.has(song.id) ? 'checked' : '';
+                html += `
+                    <label class="checkbox-label">
+                        <input type="checkbox" name="song-${playlistId}[]" value="${song.id}" ${checked}>
+                        ${song.title} <small>(${song.artist || 'Unknown'})</small>
+                    </label>
+                `;
+            }
+            html += '</div>';
+            container.innerHTML = html;
+        } catch (error) {
+            container.innerHTML = `<p class="error">Error loading songs: ${error.message}</p>`;
+        }
+    }
+}
+
+async function savePlaylistSongs(playlistId) {
+    const checkboxes = document.querySelectorAll(`input[name="song-${playlistId}[]"]:checked`);
+    const songIds = Array.from(checkboxes).map(cb => parseInt(cb.value));
+
+    try {
+        const response = await fetch(`/admin/playlists/${playlistId}/set_songs`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ song_ids: songIds })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            alert(`Playlist updated! Now contains ${data.count} songs.`);
+            // Update count display
+            document.getElementById(`playlist-count-${playlistId}`).textContent = data.count;
+            // Hide the manage row
+            document.getElementById(`manage-songs-${playlistId}`).style.display = 'none';
+        } else {
+            alert('Error: ' + data.error);
+        }
+    } catch (error) {
+        alert('Error saving playlist: ' + error.message);
     }
 }
 </script>

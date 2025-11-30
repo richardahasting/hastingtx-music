@@ -298,6 +298,40 @@ class Playlist:
                 cur.execute(query, (position, playlist_id, song_id))
             conn.commit()
 
+    @staticmethod
+    def get_playlists_for_song(song_id):
+        """Get all playlists that contain a specific song."""
+        query = """
+            SELECT p.* FROM playlists p
+            JOIN playlist_songs ps ON p.id = ps.playlist_id
+            WHERE ps.song_id = %s
+            ORDER BY p.name
+        """
+        return db.execute(query, (song_id,))
+
+    @staticmethod
+    def set_song_playlists(song_id, playlist_ids):
+        """
+        Set which playlists a song belongs to.
+        Removes from playlists not in the list, adds to new ones.
+
+        Args:
+            song_id: ID of the song
+            playlist_ids: List of playlist IDs the song should belong to
+        """
+        # Get current playlists
+        current = Playlist.get_playlists_for_song(song_id)
+        current_ids = {p['id'] for p in current}
+        new_ids = set(playlist_ids)
+
+        # Remove from playlists no longer selected
+        for playlist_id in current_ids - new_ids:
+            Playlist.remove_song(playlist_id, song_id)
+
+        # Add to new playlists
+        for playlist_id in new_ids - current_ids:
+            Playlist.add_song(playlist_id, song_id)
+
 
 class Rating:
     """Rating model and database operations."""
