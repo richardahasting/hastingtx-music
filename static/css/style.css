@@ -1223,21 +1223,6 @@ footer {
     text-decoration: underline;
 }
 
-/* Song detail link */
-.song-detail-link {
-    color: #95a5a6;
-    text-decoration: none;
-    margin-left: 8px;
-    font-size: 0.9rem;
-    opacity: 0.6;
-    transition: opacity 0.2s;
-}
-
-.song-detail-link:hover {
-    opacity: 1;
-    color: #3498db;
-}
-
 /* Song row playing state */
 .song-row.playing {
     background-color: #e8f4fd;
@@ -1250,17 +1235,6 @@ footer {
 .song-row.playing .song-number::before {
     content: '♪ ';
     color: #3498db;
-}
-
-/* Song play title hover */
-.song-play-title {
-    color: #3498db;
-    transition: color 0.2s;
-}
-
-.song-play-title:hover {
-    color: #2980b9;
-    text-decoration: underline;
 }
 
 /* Playlist Player - Fixed at bottom */

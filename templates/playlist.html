@@ -51,10 +51,9 @@
                     <td class="song-number">{{ loop.index }}</td>
                     <td class="song-title">
                         <div class="song-title-wrapper">
-                            <span class="song-play-title" style="cursor: pointer;">
+                            <a href="{{ url_for('song', identifier=song.identifier) }}">
                                 {{ song.title }}
-                            </span>
-                            <a href="{{ url_for('song', identifier=song.identifier) }}" class="song-detail-link" title="View song details">&#9432;</a>
+                            </a>
                             {% set tags = song_tags_map[song.id] if song_tags_map and song.id in song_tags_map else [] %}
                             {% if song.description or song.genre or tags %}
                             <div class="song-tooltip">
@@ -211,15 +210,6 @@ const PlaylistPlayer = {
         document.querySelectorAll('.btn-play-song').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 e.stopPropagation();
-                const row = e.target.closest('.song-row');
-                const index = parseInt(row.dataset.songIndex);
-                this.playSongByOriginalIndex(index);
-            });
-        });
-
-        // Song title click to play
-        document.querySelectorAll('.song-play-title').forEach(title => {
-            title.addEventListener('click', (e) => {
                 const row = e.target.closest('.song-row');
                 const index = parseInt(row.dataset.songIndex);
                 this.playSongByOriginalIndex(index);
