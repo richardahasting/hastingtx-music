@@ -138,6 +138,8 @@ const PlaylistPlayer = {
     repeatMode: 'none', // 'none', 'all', 'one'
     shuffledOrder: [],
     originalOrder: [],
+    listenRecorded: false, // Track if we've recorded a listen for current song
+    listenThreshold: 10, // Seconds before counting as a listen
 
     init() {
         this.audio = document.getElementById('audio-player');
@@ -251,6 +253,7 @@ const PlaylistPlayer = {
         if (!song) return;
 
         this.currentIndex = index;
+        this.listenRecorded = false; // Reset listen tracking for new song
         this.audio.src = song.url;
         this.audio.play();
 
@@ -425,6 +428,26 @@ const PlaylistPlayer = {
         const percent = (this.audio.currentTime / this.audio.duration) * 100;
         document.getElementById('progress-fill').style.width = percent + '%';
         document.getElementById('current-time').textContent = this.formatTime(this.audio.currentTime);
+
+        // Record listen after threshold seconds
+        if (!this.listenRecorded && this.audio.currentTime >= this.listenThreshold) {
+            this.recordListen();
+        }
+    },
+
+    recordListen() {
+        if (this.listenRecorded || this.currentIndex < 0) return;
+
+        const orderIndex = this.isShuffled ? this.shuffledOrder[this.currentIndex] : this.currentIndex;
+        const song = this.songs[orderIndex];
+        if (!song) return;
+
+        this.listenRecorded = true;
+
+        fetch(`/api/songs/${song.id}/listen`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        }).catch(err => console.log('Could not record listen:', err));
     },
 
     updateTotalTime() {

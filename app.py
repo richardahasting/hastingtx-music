@@ -730,6 +730,20 @@ def api_playlist_song_ids(playlist_id):
     return jsonify({'song_ids': [song['id'] for song in songs]})
 
 
+@app.route('/api/songs/<int:song_id>/listen', methods=['POST'])
+def record_listen(song_id):
+    """Record a listen for a song (called from playlist player after 10+ seconds)."""
+    try:
+        song = Song.get_by_id(song_id)
+        if not song:
+            return jsonify({'error': 'Song not found'}), 404
+
+        Song.increment_listen_count(song_id)
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
 @app.route('/api/songs/<int:song_id>/rate', methods=['POST'])
 def rate_song(song_id):
     """Submit a rating for a song."""
