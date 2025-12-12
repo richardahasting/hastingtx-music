@@ -14,7 +14,13 @@
 
     {% if songs %}
     <div class="playlist-actions">
-        <a href="{{ url_for('download_playlist', identifier=playlist.identifier) }}" class="btn btn-primary">
+        <button id="play-all-btn" class="btn btn-primary" title="Play all songs">
+            &#9658; Play All
+        </button>
+        <button id="shuffle-play-btn" class="btn btn-secondary" title="Shuffle and play">
+            &#128256; Shuffle Play
+        </button>
+        <a href="{{ url_for('download_playlist', identifier=playlist.identifier) }}" class="btn btn-secondary">
             Download All as ZIP
         </a>
         {% if is_admin_ip %}
@@ -41,13 +47,14 @@
             </thead>
             <tbody>
                 {% for song in songs %}
-                <tr class="song-row" data-song-id="{{ song.id }}">
+                <tr class="song-row" data-song-id="{{ song.id }}" data-song-index="{{ loop.index0 }}" data-song-url="{{ url_for('static', filename='uploads/' + song.filename) }}" data-song-title="{{ song.title }}" data-song-artist="{{ song.artist or '' }}" data-song-identifier="{{ song.identifier }}">
                     <td class="song-number">{{ loop.index }}</td>
                     <td class="song-title">
                         <div class="song-title-wrapper">
-                            <a href="{{ url_for('song', identifier=song.identifier) }}">
+                            <span class="song-play-title" style="cursor: pointer;">
                                 {{ song.title }}
-                            </a>
+                            </span>
+                            <a href="{{ url_for('song', identifier=song.identifier) }}" class="song-detail-link" title="View song details">&#9432;</a>
                             {% set tags = song_tags_map[song.id] if song_tags_map and song.id in song_tags_map else [] %}
                             {% if song.description or song.genre or tags %}
                             <div class="song-tooltip">
@@ -68,9 +75,9 @@
                     </td>
                     <td class="song-duration">{{ song.duration|duration }}</td>
                     <td class="song-actions">
-                        <a href="{{ url_for('song', identifier=song.identifier) }}" class="btn-small" title="Play">
+                        <button class="btn-small btn-play-song" title="Play this song">
                             &#9658;
-                        </a>
+                        </button>
                         <a href="{{ url_for('download_song', identifier=song.identifier) }}" class="btn-small btn-download" title="Download">
                             &#11015;
                         </a>
@@ -80,10 +87,421 @@
             </tbody>
         </table>
     </div>
+
+    <!-- Playlist Player -->
+    <div id="playlist-player" class="playlist-player" style="display: none;">
+        <div class="player-progress-container">
+            <div class="player-progress-bar" id="progress-bar">
+                <div class="player-progress-fill" id="progress-fill"></div>
+            </div>
+            <div class="player-time">
+                <span id="current-time">0:00</span>
+                <span id="total-time">0:00</span>
+            </div>
+        </div>
+        <div class="player-main">
+            <div class="player-song-info">
+                <div class="player-song-title" id="player-song-title">No song selected</div>
+                <div class="player-song-artist" id="player-song-artist"></div>
+            </div>
+            <div class="player-controls">
+                <button id="btn-shuffle" class="player-btn" title="Shuffle">&#128256;</button>
+                <button id="btn-prev" class="player-btn" title="Previous">&#9198;</button>
+                <button id="btn-play-pause" class="player-btn player-btn-main" title="Play/Pause">&#9658;</button>
+                <button id="btn-next" class="player-btn" title="Next">&#9197;</button>
+                <button id="btn-repeat" class="player-btn" title="Repeat">&#128257;</button>
+            </div>
+            <div class="player-volume">
+                <button id="btn-volume" class="player-btn" title="Volume">&#128264;</button>
+                <input type="range" id="volume-slider" min="0" max="100" value="100" class="volume-slider">
+            </div>
+        </div>
+        <audio id="audio-player"></audio>
+    </div>
     {% else %}
     <div class="empty-playlist">
         <p>No songs in this playlist yet.</p>
     </div>
     {% endif %}
 </div>
+{% endblock %}
+
+{% block extra_js %}
+{% if songs %}
+<script>
+// Playlist Player Controller
+const PlaylistPlayer = {
+    audio: null,
+    songs: [],
+    currentIndex: -1,
+    isPlaying: false,
+    isShuffled: false,
+    repeatMode: 'none', // 'none', 'all', 'one'
+    shuffledOrder: [],
+    originalOrder: [],
+
+    init() {
+        this.audio = document.getElementById('audio-player');
+        this.loadSongs();
+        this.bindEvents();
+        this.loadState();
+    },
+
+    loadSongs() {
+        const rows = document.querySelectorAll('.song-row');
+        rows.forEach((row, index) => {
+            this.songs.push({
+                index: index,
+                id: row.dataset.songId,
+                url: row.dataset.songUrl,
+                title: row.dataset.songTitle,
+                artist: row.dataset.songArtist,
+                identifier: row.dataset.songIdentifier
+            });
+            this.originalOrder.push(index);
+        });
+        this.shuffledOrder = [...this.originalOrder];
+    },
+
+    bindEvents() {
+        // Audio events
+        this.audio.addEventListener('ended', () => this.onSongEnd());
+        this.audio.addEventListener('timeupdate', () => this.updateProgress());
+        this.audio.addEventListener('loadedmetadata', () => this.updateTotalTime());
+        this.audio.addEventListener('play', () => this.onPlay());
+        this.audio.addEventListener('pause', () => this.onPause());
+
+        // Control buttons
+        document.getElementById('btn-play-pause').addEventListener('click', () => this.togglePlayPause());
+        document.getElementById('btn-prev').addEventListener('click', () => this.playPrevious());
+        document.getElementById('btn-next').addEventListener('click', () => this.playNext());
+        document.getElementById('btn-shuffle').addEventListener('click', () => this.toggleShuffle());
+        document.getElementById('btn-repeat').addEventListener('click', () => this.toggleRepeat());
+
+        // Volume
+        document.getElementById('volume-slider').addEventListener('input', (e) => {
+            this.audio.volume = e.target.value / 100;
+            this.updateVolumeIcon();
+        });
+        document.getElementById('btn-volume').addEventListener('click', () => this.toggleMute());
+
+        // Progress bar click
+        document.getElementById('progress-bar').addEventListener('click', (e) => {
+            const rect = e.currentTarget.getBoundingClientRect();
+            const percent = (e.clientX - rect.left) / rect.width;
+            this.audio.currentTime = percent * this.audio.duration;
+        });
+
+        // Play all button
+        document.getElementById('play-all-btn').addEventListener('click', () => {
+            this.isShuffled = false;
+            this.updateShuffleButton();
+            this.playSong(0);
+        });
+
+        // Shuffle play button
+        document.getElementById('shuffle-play-btn').addEventListener('click', () => {
+            this.isShuffled = true;
+            this.shuffleArray();
+            this.updateShuffleButton();
+            this.playSong(0);
+        });
+
+        // Song row play buttons
+        document.querySelectorAll('.btn-play-song').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const row = e.target.closest('.song-row');
+                const index = parseInt(row.dataset.songIndex);
+                this.playSongByOriginalIndex(index);
+            });
+        });
+
+        // Song title click to play
+        document.querySelectorAll('.song-play-title').forEach(title => {
+            title.addEventListener('click', (e) => {
+                const row = e.target.closest('.song-row');
+                const index = parseInt(row.dataset.songIndex);
+                this.playSongByOriginalIndex(index);
+            });
+        });
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            // Only handle if not typing in an input
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+            if (e.code === 'Space' && this.currentIndex >= 0) {
+                e.preventDefault();
+                this.togglePlayPause();
+            } else if (e.code === 'ArrowRight' && e.ctrlKey) {
+                this.playNext();
+            } else if (e.code === 'ArrowLeft' && e.ctrlKey) {
+                this.playPrevious();
+            }
+        });
+    },
+
+    playSongByOriginalIndex(originalIndex) {
+        if (this.isShuffled) {
+            // Find position in shuffled order
+            const shuffledPos = this.shuffledOrder.indexOf(originalIndex);
+            if (shuffledPos !== -1) {
+                this.playSong(shuffledPos);
+            }
+        } else {
+            this.playSong(originalIndex);
+        }
+    },
+
+    playSong(index) {
+        const orderIndex = this.isShuffled ? this.shuffledOrder[index] : index;
+        const song = this.songs[orderIndex];
+
+        if (!song) return;
+
+        this.currentIndex = index;
+        this.audio.src = song.url;
+        this.audio.play();
+
+        // Update UI
+        document.getElementById('player-song-title').textContent = song.title;
+        document.getElementById('player-song-artist').textContent = song.artist;
+        document.getElementById('playlist-player').style.display = 'block';
+
+        // Highlight current song in list
+        this.highlightCurrentSong(orderIndex);
+
+        // Save state
+        this.saveState();
+    },
+
+    highlightCurrentSong(originalIndex) {
+        document.querySelectorAll('.song-row').forEach(row => {
+            row.classList.remove('playing');
+        });
+        const currentRow = document.querySelector(`.song-row[data-song-index="${originalIndex}"]`);
+        if (currentRow) {
+            currentRow.classList.add('playing');
+        }
+    },
+
+    togglePlayPause() {
+        if (this.currentIndex < 0) {
+            this.playSong(0);
+            return;
+        }
+
+        if (this.audio.paused) {
+            this.audio.play();
+        } else {
+            this.audio.pause();
+        }
+    },
+
+    onPlay() {
+        this.isPlaying = true;
+        document.getElementById('btn-play-pause').innerHTML = '&#10074;&#10074;';
+        document.getElementById('btn-play-pause').title = 'Pause';
+    },
+
+    onPause() {
+        this.isPlaying = false;
+        document.getElementById('btn-play-pause').innerHTML = '&#9658;';
+        document.getElementById('btn-play-pause').title = 'Play';
+    },
+
+    playNext() {
+        if (this.currentIndex < 0) return;
+
+        let nextIndex = this.currentIndex + 1;
+
+        if (nextIndex >= this.songs.length) {
+            if (this.repeatMode === 'all') {
+                nextIndex = 0;
+            } else {
+                return; // End of playlist
+            }
+        }
+
+        this.playSong(nextIndex);
+    },
+
+    playPrevious() {
+        if (this.currentIndex < 0) return;
+
+        // If more than 3 seconds into song, restart it
+        if (this.audio.currentTime > 3) {
+            this.audio.currentTime = 0;
+            return;
+        }
+
+        let prevIndex = this.currentIndex - 1;
+
+        if (prevIndex < 0) {
+            if (this.repeatMode === 'all') {
+                prevIndex = this.songs.length - 1;
+            } else {
+                this.audio.currentTime = 0;
+                return;
+            }
+        }
+
+        this.playSong(prevIndex);
+    },
+
+    onSongEnd() {
+        if (this.repeatMode === 'one') {
+            this.audio.currentTime = 0;
+            this.audio.play();
+        } else {
+            this.playNext();
+        }
+    },
+
+    toggleShuffle() {
+        this.isShuffled = !this.isShuffled;
+
+        if (this.isShuffled) {
+            // Remember current song's original index
+            const currentOriginalIndex = this.currentIndex >= 0 ?
+                (this.shuffledOrder[this.currentIndex]) : -1;
+
+            this.shuffleArray();
+
+            // Put current song at start of shuffled order
+            if (currentOriginalIndex >= 0) {
+                const pos = this.shuffledOrder.indexOf(currentOriginalIndex);
+                if (pos > 0) {
+                    this.shuffledOrder.splice(pos, 1);
+                    this.shuffledOrder.unshift(currentOriginalIndex);
+                }
+                this.currentIndex = 0;
+            }
+        } else {
+            // Switch back to original order
+            if (this.currentIndex >= 0) {
+                const currentOriginalIndex = this.shuffledOrder[this.currentIndex];
+                this.currentIndex = currentOriginalIndex;
+            }
+            this.shuffledOrder = [...this.originalOrder];
+        }
+
+        this.updateShuffleButton();
+        this.saveState();
+    },
+
+    shuffleArray() {
+        this.shuffledOrder = [...this.originalOrder];
+        for (let i = this.shuffledOrder.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [this.shuffledOrder[i], this.shuffledOrder[j]] = [this.shuffledOrder[j], this.shuffledOrder[i]];
+        }
+    },
+
+    updateShuffleButton() {
+        const btn = document.getElementById('btn-shuffle');
+        btn.classList.toggle('active', this.isShuffled);
+    },
+
+    toggleRepeat() {
+        const modes = ['none', 'all', 'one'];
+        const currentIdx = modes.indexOf(this.repeatMode);
+        this.repeatMode = modes[(currentIdx + 1) % modes.length];
+        this.updateRepeatButton();
+        this.saveState();
+    },
+
+    updateRepeatButton() {
+        const btn = document.getElementById('btn-repeat');
+        btn.classList.remove('active', 'repeat-one');
+
+        if (this.repeatMode === 'all') {
+            btn.classList.add('active');
+            btn.title = 'Repeat All';
+        } else if (this.repeatMode === 'one') {
+            btn.classList.add('active', 'repeat-one');
+            btn.innerHTML = '&#128257;<span class="repeat-one-badge">1</span>';
+            btn.title = 'Repeat One';
+        } else {
+            btn.innerHTML = '&#128257;';
+            btn.title = 'Repeat Off';
+        }
+    },
+
+    updateProgress() {
+        if (!this.audio.duration) return;
+
+        const percent = (this.audio.currentTime / this.audio.duration) * 100;
+        document.getElementById('progress-fill').style.width = percent + '%';
+        document.getElementById('current-time').textContent = this.formatTime(this.audio.currentTime);
+    },
+
+    updateTotalTime() {
+        document.getElementById('total-time').textContent = this.formatTime(this.audio.duration);
+    },
+
+    formatTime(seconds) {
+        if (isNaN(seconds)) return '0:00';
+        const mins = Math.floor(seconds / 60);
+        const secs = Math.floor(seconds % 60);
+        return `${mins}:${secs.toString().padStart(2, '0')}`;
+    },
+
+    toggleMute() {
+        this.audio.muted = !this.audio.muted;
+        this.updateVolumeIcon();
+    },
+
+    updateVolumeIcon() {
+        const btn = document.getElementById('btn-volume');
+        const volume = this.audio.muted ? 0 : this.audio.volume;
+
+        if (volume === 0) {
+            btn.innerHTML = '&#128263;'; // Muted
+        } else if (volume < 0.5) {
+            btn.innerHTML = '&#128264;'; // Low
+        } else {
+            btn.innerHTML = '&#128266;'; // High
+        }
+    },
+
+    saveState() {
+        const state = {
+            isShuffled: this.isShuffled,
+            repeatMode: this.repeatMode,
+            volume: this.audio.volume
+        };
+        localStorage.setItem('playlistPlayerState', JSON.stringify(state));
+    },
+
+    loadState() {
+        try {
+            const state = JSON.parse(localStorage.getItem('playlistPlayerState'));
+            if (state) {
+                this.isShuffled = state.isShuffled || false;
+                this.repeatMode = state.repeatMode || 'none';
+                this.audio.volume = state.volume !== undefined ? state.volume : 1;
+
+                document.getElementById('volume-slider').value = this.audio.volume * 100;
+                this.updateShuffleButton();
+                this.updateRepeatButton();
+                this.updateVolumeIcon();
+
+                if (this.isShuffled) {
+                    this.shuffleArray();
+                }
+            }
+        } catch (e) {
+            console.log('Could not load player state');
+        }
+    }
+};
+
+// Initialize player when DOM is ready
+document.addEventListener('DOMContentLoaded', () => {
+    PlaylistPlayer.init();
+});
+</script>
+{% endif %}
 {% endblock %}

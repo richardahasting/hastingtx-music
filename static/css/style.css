@@ -1222,3 +1222,252 @@ footer {
     color: #2980b9;
     text-decoration: underline;
 }
+
+/* Song detail link */
+.song-detail-link {
+    color: #95a5a6;
+    text-decoration: none;
+    margin-left: 8px;
+    font-size: 0.9rem;
+    opacity: 0.6;
+    transition: opacity 0.2s;
+}
+
+.song-detail-link:hover {
+    opacity: 1;
+    color: #3498db;
+}
+
+/* Song row playing state */
+.song-row.playing {
+    background-color: #e8f4fd;
+}
+
+.song-row.playing td {
+    font-weight: 600;
+}
+
+.song-row.playing .song-number::before {
+    content: '♪ ';
+    color: #3498db;
+}
+
+/* Song play title hover */
+.song-play-title {
+    color: #3498db;
+    transition: color 0.2s;
+}
+
+.song-play-title:hover {
+    color: #2980b9;
+    text-decoration: underline;
+}
+
+/* Playlist Player - Fixed at bottom */
+.playlist-player {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: linear-gradient(to top, #1a252f 0%, #2c3e50 100%);
+    color: white;
+    padding: 0;
+    z-index: 1000;
+    box-shadow: 0 -4px 20px rgba(0,0,0,0.4);
+}
+
+.player-progress-container {
+    padding: 0 1rem;
+}
+
+.player-progress-bar {
+    height: 6px;
+    background-color: #34495e;
+    cursor: pointer;
+    border-radius: 3px;
+    overflow: hidden;
+    margin-top: 8px;
+}
+
+.player-progress-fill {
+    height: 100%;
+    background: linear-gradient(to right, #3498db, #2ecc71);
+    width: 0%;
+    transition: width 0.1s linear;
+}
+
+.player-progress-bar:hover .player-progress-fill {
+    background: linear-gradient(to right, #5dade2, #58d68d);
+}
+
+.player-time {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.75rem;
+    color: #95a5a6;
+    margin-top: 4px;
+    padding: 0 4px;
+}
+
+.player-main {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.75rem 1.5rem 1rem;
+    gap: 1rem;
+}
+
+.player-song-info {
+    flex: 1;
+    min-width: 0;
+    max-width: 300px;
+}
+
+.player-song-title {
+    font-weight: 600;
+    font-size: 1rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.player-song-artist {
+    font-size: 0.85rem;
+    color: #95a5a6;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.player-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.player-btn {
+    background: none;
+    border: none;
+    color: #ecf0f1;
+    font-size: 1.3rem;
+    cursor: pointer;
+    padding: 0.5rem;
+    border-radius: 50%;
+    transition: all 0.2s;
+    width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.player-btn:hover {
+    background-color: rgba(255,255,255,0.1);
+    transform: scale(1.1);
+}
+
+.player-btn.active {
+    color: #3498db;
+}
+
+.player-btn-main {
+    font-size: 1.8rem;
+    width: 56px;
+    height: 56px;
+    background-color: #3498db;
+    color: white;
+}
+
+.player-btn-main:hover {
+    background-color: #2980b9;
+}
+
+.repeat-one-badge {
+    font-size: 0.6rem;
+    position: relative;
+    top: -0.5em;
+    margin-left: -2px;
+}
+
+.player-volume {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-width: 150px;
+}
+
+.volume-slider {
+    width: 100px;
+    height: 4px;
+    -webkit-appearance: none;
+    appearance: none;
+    background: #34495e;
+    border-radius: 2px;
+    outline: none;
+}
+
+.volume-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 14px;
+    height: 14px;
+    background: #ecf0f1;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+
+.volume-slider::-webkit-slider-thumb:hover {
+    transform: scale(1.2);
+}
+
+.volume-slider::-moz-range-thumb {
+    width: 14px;
+    height: 14px;
+    background: #ecf0f1;
+    border-radius: 50%;
+    cursor: pointer;
+    border: none;
+}
+
+/* Add padding to playlist page to account for fixed player */
+.playlist-page {
+    padding-bottom: 120px;
+}
+
+/* Responsive player */
+@media (max-width: 768px) {
+    .player-main {
+        flex-wrap: wrap;
+        justify-content: center;
+        padding: 0.5rem 1rem 0.75rem;
+    }
+
+    .player-song-info {
+        order: -1;
+        width: 100%;
+        max-width: none;
+        text-align: center;
+        margin-bottom: 0.5rem;
+    }
+
+    .player-volume {
+        min-width: auto;
+    }
+
+    .volume-slider {
+        width: 60px;
+    }
+
+    .player-btn {
+        width: 40px;
+        height: 40px;
+        font-size: 1.1rem;
+    }
+
+    .player-btn-main {
+        width: 48px;
+        height: 48px;
+        font-size: 1.5rem;
+    }
+}
