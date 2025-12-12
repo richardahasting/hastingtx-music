@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}HastingTX Music{% endblock %}</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=20251212a">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=20251212b">
     {% block extra_css %}{% endblock %}
 </head>
 <body>
@@ -14,7 +14,10 @@
                 <h1 class="logo">
                     <a href="{{ url_for('index') }}">HastingTX Music</a>
                 </h1>
-                <ul class="nav-links">
+                <button class="nav-toggle" id="nav-toggle" aria-label="Toggle navigation">
+                    <span class="hamburger"></span>
+                </button>
+                <ul class="nav-links" id="nav-links">
                     <li><a href="{{ url_for('playlist', identifier='all') }}">All Songs</a></li>
                     {% if nav_albums %}
                     <li class="nav-dropdown">
@@ -148,6 +151,38 @@
             .finally(() => {
                 submitBtn.disabled = false;
                 submitBtn.textContent = 'Subscribe';
+            });
+        });
+    }
+    </script>
+
+    <script>
+    // Mobile navigation toggle
+    const navToggle = document.getElementById('nav-toggle');
+    const navLinks = document.getElementById('nav-links');
+
+    if (navToggle) {
+        navToggle.addEventListener('click', function() {
+            navLinks.classList.toggle('nav-open');
+            navToggle.classList.toggle('nav-open');
+        });
+
+        // Close menu when clicking a link (except dropdowns)
+        navLinks.querySelectorAll('a:not(.dropdown-toggle)').forEach(link => {
+            link.addEventListener('click', () => {
+                navLinks.classList.remove('nav-open');
+                navToggle.classList.remove('nav-open');
+            });
+        });
+
+        // Handle dropdown toggles on mobile
+        navLinks.querySelectorAll('.dropdown-toggle').forEach(toggle => {
+            toggle.addEventListener('click', function(e) {
+                if (window.innerWidth <= 768) {
+                    e.preventDefault();
+                    const parent = this.parentElement;
+                    parent.classList.toggle('dropdown-open');
+                }
             });
         });
     }
