@@ -946,5 +946,398 @@ def unsubscribe(token):
                              code=500), 500
 
 
+# ============================================================================
+# GALLERY ROUTES - Letters From Dick Image Gallery
+# ============================================================================
+
+from gallery_models import GallerySection, GalleryImage
+from gallery_utils import (
+    allowed_image_file, generate_gallery_identifier, process_uploaded_image,
+    delete_image_files, format_date_for_display, parse_date_input
+)
+
+# Gallery directories
+GALLERY_IMAGES_DIR = os.path.join(config.UPLOAD_FOLDER, 'gallery', 'images')
+GALLERY_THUMBNAILS_DIR = os.path.join(config.UPLOAD_FOLDER, 'gallery', 'thumbnails')
+
+
+# Public gallery routes
+@app.route('/letters-from-dick')
+@app.route('/letters-from-dick/')
+def gallery_index():
+    """Main gallery page - grid of all images."""
+    # Get filter parameters
+    section_filter = request.args.get('section')
+    date_filter = request.args.get('date')
+    sort_by = request.args.get('sort', 'date')  # date, title, upload
+
+    # Get sections for filter dropdown
+    sections = GallerySection.get_with_counts()
+
+    # Get images based on filters
+    if section_filter:
+        section = GallerySection.get_by_identifier(section_filter)
+        if section:
+            images = GalleryImage.get_by_section(section['id'])
+        else:
+            images = []
+    elif date_filter:
+        parsed_date = parse_date_input(date_filter)
+        if parsed_date:
+            images = GalleryImage.get_by_date(parsed_date)
+        else:
+            images = []
+    else:
+        # Get all images
+        if sort_by == 'title':
+            images = GalleryImage.get_all(order_by='title, significance_date')
+        elif sort_by == 'upload':
+            images = GalleryImage.get_all(order_by='upload_date DESC')
+        else:  # date (default)
+            images = GalleryImage.get_all(order_by='significance_date DESC NULLS LAST, upload_date DESC')
+
+    return render_template('gallery/index.html',
+                         images=images,
+                         sections=sections,
+                         current_section=section_filter,
+                         current_date=date_filter,
+                         current_sort=sort_by)
+
+
+@app.route('/letters-from-dick/section/<identifier>')
+def gallery_section(identifier):
+    """Display images in a specific section."""
+    section = GallerySection.get_by_identifier(identifier)
+    if not section:
+        abort(404, description=f"Section '{identifier}' not found")
+
+    images = GalleryImage.get_by_section(section['id'])
+    sections = GallerySection.get_with_counts()
+
+    return render_template('gallery/section.html',
+                         section=section,
+                         images=images,
+                         sections=sections)
+
+
+@app.route('/letters-from-dick/image/<identifier>')
+def gallery_image(identifier):
+    """Display a single image with full details."""
+    image = GalleryImage.get_by_identifier(identifier)
+    if not image:
+        abort(404, description=f"Image '{identifier}' not found")
+
+    # Track view
+    GalleryImage.increment_view_count(image['id'])
+
+    # Get section info if assigned
+    section = None
+    if image['section_id']:
+        section = GallerySection.get_by_id(image['section_id'])
+
+    # Get prev/next for navigation
+    prev_img, next_img = GalleryImage.get_navigation(image['id'], image['section_id'])
+
+    return render_template('gallery/image.html',
+                         image=image,
+                         section=section,
+                         prev_image=prev_img,
+                         next_image=next_img)
+
+
+@app.route('/letters-from-dick/date/<date_str>')
+def gallery_by_date(date_str):
+    """Display all images for a specific date."""
+    parsed_date = parse_date_input(date_str)
+    if not parsed_date:
+        abort(404, description=f"Invalid date format: {date_str}")
+
+    images = GalleryImage.get_by_date(parsed_date)
+    sections = GallerySection.get_with_counts()
+
+    return render_template('gallery/index.html',
+                         images=images,
+                         sections=sections,
+                         current_date=date_str,
+                         date_display=format_date_for_display(parsed_date))
+
+
+@app.route('/letters-from-dick/download/<identifier>')
+def gallery_download(identifier):
+    """Download full-size image."""
+    image = GalleryImage.get_by_identifier(identifier)
+    if not image:
+        abort(404, description=f"Image '{identifier}' not found")
+
+    file_path = os.path.join(GALLERY_IMAGES_DIR, image['filename'])
+    if not os.path.exists(file_path):
+        abort(404, description="File not found on server")
+
+    # Use title for download name
+    ext = image['file_type'] or 'jpg'
+    download_name = f"{image['title']}.{ext}" if image['title'] else image['filename']
+
+    return send_file(file_path, as_attachment=True, download_name=download_name)
+
+
+# Admin gallery routes
+@app.route('/admin/gallery')
+@require_admin_ip
+def admin_gallery():
+    """Gallery admin dashboard."""
+    images = GalleryImage.get_with_section()
+    sections = GallerySection.get_with_counts()
+    total_images = GalleryImage.get_count()
+
+    return render_template('gallery/admin.html',
+                         images=images,
+                         sections=sections,
+                         total_images=total_images)
+
+
+@app.route('/admin/gallery/upload', methods=['GET', 'POST'])
+@require_admin_ip
+def gallery_upload():
+    """Upload a new gallery image."""
+    if request.method == 'GET':
+        sections = GallerySection.get_all()
+        return render_template('upload_image.html', sections=sections)
+
+    # Handle POST - file upload
+    if 'file' not in request.files:
+        return jsonify({'error': 'No file provided'}), 400
+
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({'error': 'No file selected'}), 400
+
+    if not allowed_image_file(file.filename):
+        return jsonify({'error': 'Invalid file type. Allowed: JPG, PNG, GIF, WebP, PDF'}), 400
+
+    # Process uploaded image
+    file_info = process_uploaded_image(file, GALLERY_IMAGES_DIR, GALLERY_THUMBNAILS_DIR)
+    if not file_info:
+        return jsonify({'error': 'Error processing image'}), 500
+
+    # Get form data
+    title = request.form.get('title') or file.filename.rsplit('.', 1)[0]
+    description = request.form.get('description')
+    significance_date = request.form.get('significance_date')
+    source = request.form.get('source')
+    section_id = request.form.get('section_id')
+
+    # Parse date
+    if significance_date:
+        significance_date = parse_date_input(significance_date)
+
+    # Parse section_id
+    if section_id:
+        section_id = int(section_id) if section_id.isdigit() else None
+
+    # Generate identifier
+    identifier = request.form.get('identifier')
+    if not identifier:
+        identifier = generate_gallery_identifier(title)
+
+    # Ensure unique identifier
+    existing = GalleryImage.get_by_identifier(identifier)
+    if existing:
+        counter = 1
+        base_identifier = identifier
+        while existing:
+            identifier = f"{base_identifier}-{counter}"
+            existing = GalleryImage.get_by_identifier(identifier)
+            counter += 1
+
+    try:
+        image = GalleryImage.create(
+            identifier=identifier,
+            title=title,
+            filename=file_info['filename'],
+            file_type=file_info['file_type'],
+            file_size=file_info['file_size'],
+            description=description,
+            significance_date=significance_date,
+            source=source,
+            thumbnail=file_info['thumbnail'],
+            width=file_info['width'],
+            height=file_info['height'],
+            section_id=section_id
+        )
+
+        return jsonify({
+            'success': True,
+            'image': dict(image),
+            'url': url_for('gallery_image', identifier=image['identifier'])
+        })
+
+    except Exception as e:
+        # Clean up files on error
+        delete_image_files(file_info['filename'], file_info['thumbnail'],
+                          GALLERY_IMAGES_DIR, GALLERY_THUMBNAILS_DIR)
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/admin/gallery/images/<int:image_id>/edit', methods=['GET', 'POST'])
+@require_admin_ip
+def edit_gallery_image(image_id):
+    """Edit gallery image metadata."""
+    image = GalleryImage.get_by_id(image_id)
+    if not image:
+        abort(404, description="Image not found")
+
+    if request.method == 'GET':
+        sections = GallerySection.get_all()
+        return render_template('gallery/edit_image.html', image=image, sections=sections)
+
+    # Handle POST - update metadata
+    try:
+        update_data = {}
+
+        if request.form.get('title'):
+            update_data['title'] = request.form.get('title')
+        if 'description' in request.form:
+            update_data['description'] = request.form.get('description')
+        if request.form.get('significance_date'):
+            update_data['significance_date'] = parse_date_input(request.form.get('significance_date'))
+        if 'source' in request.form:
+            update_data['source'] = request.form.get('source')
+        if 'section_id' in request.form:
+            section_id = request.form.get('section_id')
+            update_data['section_id'] = int(section_id) if section_id and section_id.isdigit() else None
+        if request.form.get('identifier'):
+            update_data['identifier'] = request.form.get('identifier')
+
+        updated_image = GalleryImage.update(image_id, **update_data)
+
+        return jsonify({
+            'success': True,
+            'image': dict(updated_image),
+            'url': url_for('gallery_image', identifier=updated_image['identifier'])
+        })
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/admin/gallery/images/<int:image_id>', methods=['DELETE'])
+@require_admin_ip
+def delete_gallery_image(image_id):
+    """Delete a gallery image."""
+    image = GalleryImage.get_by_id(image_id)
+    if not image:
+        return jsonify({'error': 'Image not found'}), 404
+
+    try:
+        # Delete files
+        delete_image_files(image['filename'], image['thumbnail'],
+                          GALLERY_IMAGES_DIR, GALLERY_THUMBNAILS_DIR)
+
+        # Delete database record
+        GalleryImage.delete(image_id)
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/admin/gallery/images/<int:image_id>/move', methods=['POST'])
+@require_admin_ip
+def move_gallery_image(image_id):
+    """Move an image to a different section."""
+    data = request.get_json()
+    section_id = data.get('section_id')
+
+    try:
+        GalleryImage.move_to_section(image_id, section_id)
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/admin/gallery/sections/create', methods=['POST'])
+@require_admin_ip
+def create_gallery_section():
+    """Create a new gallery section."""
+    data = request.get_json()
+
+    name = data.get('name')
+    if not name:
+        return jsonify({'error': 'Section name required'}), 400
+
+    identifier = data.get('identifier', generate_gallery_identifier(name))
+    description = data.get('description')
+    sort_order = data.get('sort_order', 0)
+
+    try:
+        section = GallerySection.create(
+            identifier=identifier,
+            name=name,
+            description=description,
+            sort_order=sort_order
+        )
+        return jsonify({'success': True, 'section': dict(section)})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/admin/gallery/sections/<int:section_id>', methods=['DELETE'])
+@require_admin_ip
+def delete_gallery_section(section_id):
+    """Delete a gallery section."""
+    try:
+        GallerySection.delete(section_id)
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+# Gallery API routes
+@app.route('/api/gallery/images')
+def api_gallery_images():
+    """Get all gallery images as JSON."""
+    images = GalleryImage.get_all()
+    return jsonify([dict(img) for img in images])
+
+
+@app.route('/api/gallery/images/date/<date_str>')
+def api_gallery_images_by_date(date_str):
+    """Get gallery images for a specific date as JSON (for book integration)."""
+    parsed_date = parse_date_input(date_str)
+    if not parsed_date:
+        return jsonify({'error': 'Invalid date format'}), 400
+
+    images = GalleryImage.get_by_date(parsed_date)
+
+    # Format for book integration
+    result = []
+    for img in images:
+        result.append({
+            'id': img['id'],
+            'identifier': img['identifier'],
+            'title': img['title'],
+            'description': img['description'],
+            'significance_date': str(img['significance_date']) if img['significance_date'] else None,
+            'source': img['source'],
+            'thumbnail_url': url_for('static', filename=f'uploads/gallery/thumbnails/{img["thumbnail"]}') if img['thumbnail'] else None,
+            'image_url': url_for('static', filename=f'uploads/gallery/images/{img["filename"]}'),
+            'page_url': url_for('gallery_image', identifier=img['identifier']),
+            'width': img['width'],
+            'height': img['height']
+        })
+
+    return jsonify({
+        'date': str(parsed_date),
+        'count': len(result),
+        'images': result
+    })
+
+
+@app.route('/api/gallery/sections')
+def api_gallery_sections():
+    """Get all gallery sections as JSON."""
+    sections = GallerySection.get_with_counts()
+    return jsonify([dict(s) for s in sections])
+
+
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)

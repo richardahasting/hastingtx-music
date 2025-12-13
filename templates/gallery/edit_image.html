@@ -1,0 +1,138 @@
+{% extends "base.html" %}
+
+{% block title %}Edit: {{ image.title }} - Gallery Admin{% endblock %}
+
+{% block content %}
+<div class="upload-page">
+    <h1>Edit Image</h1>
+
+    <div class="image-preview" style="margin-bottom: 2rem; text-align: center;">
+        {% if image.thumbnail %}
+        <img src="{{ url_for('static', filename='uploads/gallery/thumbnails/' + image.thumbnail) }}"
+             alt="{{ image.title }}"
+             style="max-width: 300px; border-radius: 8px;">
+        {% else %}
+        <img src="{{ url_for('static', filename='uploads/gallery/images/' + image.filename) }}"
+             alt="{{ image.title }}"
+             style="max-width: 300px; border-radius: 8px;">
+        {% endif %}
+    </div>
+
+    <form id="edit-form">
+        <div class="form-section">
+            <h3>Image Information</h3>
+
+            <div class="form-group">
+                <label for="title">Title *</label>
+                <input type="text" id="title" name="title" value="{{ image.title }}" required>
+            </div>
+
+            <div class="form-group">
+                <label for="description">Description</label>
+                <textarea id="description" name="description" rows="4">{{ image.description or '' }}</textarea>
+            </div>
+
+            <div class="form-group">
+                <label for="significance_date">Significance Date</label>
+                <input type="date" id="significance_date" name="significance_date"
+                       value="{{ image.significance_date.strftime('%Y-%m-%d') if image.significance_date else '' }}">
+                <small>The date this image relates to in the book</small>
+            </div>
+
+            <div class="form-group">
+                <label for="source">Source (optional)</label>
+                <input type="text" id="source" name="source" value="{{ image.source or '' }}"
+                       placeholder="e.g., Family collection, National Archives">
+            </div>
+
+            <div class="form-group">
+                <label for="section_id">Section</label>
+                <select id="section_id" name="section_id">
+                    <option value="">-- No Section --</option>
+                    {% for section in sections %}
+                    <option value="{{ section.id }}" {% if image.section_id == section.id %}selected{% endif %}>
+                        {{ section.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="identifier">URL Identifier</label>
+                <input type="text" id="identifier" name="identifier" value="{{ image.identifier }}">
+                <small>Current URL: /gallery/image/<strong>{{ image.identifier }}</strong></small>
+            </div>
+        </div>
+
+        <div class="form-section">
+            <h3>File Information (Read Only)</h3>
+            <p><strong>Filename:</strong> {{ image.filename }}</p>
+            <p><strong>Type:</strong> {{ image.file_type|upper }}</p>
+            <p><strong>Dimensions:</strong> {{ image.width or '?' }} x {{ image.height or '?' }} px</p>
+            <p><strong>Size:</strong> {{ image.file_size|filesizeformat if image.file_size else 'Unknown' }}</p>
+            <p><strong>Uploaded:</strong> {{ image.upload_date.strftime('%Y-%m-%d %H:%M') if image.upload_date else 'Unknown' }}</p>
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary" id="submit-btn">Save Changes</button>
+            <a href="{{ url_for('gallery_image', identifier=image.identifier) }}" class="btn btn-secondary">Cancel</a>
+            <a href="{{ url_for('admin_gallery') }}" class="btn btn-secondary">Back to Admin</a>
+        </div>
+    </form>
+
+    <div id="edit-success" class="success-message" style="display: none;">
+        <h2>Changes Saved!</h2>
+        <p id="success-message"></p>
+        <div class="success-actions">
+            <a id="view-image-link" href="#" class="btn btn-primary">View Image</a>
+            <a href="{{ url_for('admin_gallery') }}" class="btn btn-secondary">Back to Admin</a>
+        </div>
+    </div>
+
+    <div id="edit-error" class="error-message" style="display: none;">
+        <h2>Update Failed</h2>
+        <p id="error-message"></p>
+        <button onclick="document.getElementById('edit-error').style.display='none'" class="btn btn-secondary">Try Again</button>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const editForm = document.getElementById('edit-form');
+
+editForm.addEventListener('submit', async function(e) {
+    e.preventDefault();
+
+    const submitBtn = document.getElementById('submit-btn');
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Saving...';
+
+    const formData = new FormData(editForm);
+
+    try {
+        const response = await fetch('{{ url_for("edit_gallery_image", image_id=image.id) }}', {
+            method: 'POST',
+            body: formData
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            editForm.style.display = 'none';
+            document.getElementById('success-message').textContent = `"${data.image.title}" has been updated!`;
+            document.getElementById('view-image-link').href = data.url;
+            document.getElementById('edit-success').style.display = 'block';
+        } else {
+            throw new Error(data.error || 'Update failed');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        document.getElementById('error-message').textContent = error.message;
+        document.getElementById('edit-error').style.display = 'block';
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Save Changes';
+    }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,300 @@
+{% extends "base.html" %}
+
+{% block title %}Letters From Dick Gallery - HastingTX{% endblock %}
+
+{% block extra_css %}
+<style>
+.gallery-page {
+    padding: 2rem 0;
+}
+
+.gallery-header {
+    margin-bottom: 2rem;
+}
+
+.gallery-header h1 {
+    margin-bottom: 0.5rem;
+}
+
+.gallery-header p {
+    color: #666;
+    margin-bottom: 1rem;
+}
+
+.gallery-filters {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+    margin-bottom: 2rem;
+    padding: 1rem;
+    background: #f8f9fa;
+    border-radius: 8px;
+}
+
+.gallery-filters select,
+.gallery-filters input {
+    padding: 0.5rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 1rem;
+}
+
+.gallery-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 1.5rem;
+}
+
+.gallery-item {
+    background: #fff;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.gallery-item:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+}
+
+.gallery-item a {
+    text-decoration: none;
+    color: inherit;
+}
+
+.gallery-thumbnail {
+    position: relative;
+    padding-top: 75%; /* 4:3 aspect ratio */
+    background: #eee;
+    overflow: hidden;
+}
+
+.gallery-thumbnail img {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.gallery-item-info {
+    padding: 1rem;
+}
+
+.gallery-item-info h3 {
+    margin: 0 0 0.5rem 0;
+    font-size: 1rem;
+    line-height: 1.3;
+}
+
+.gallery-item-date {
+    color: #666;
+    font-size: 0.875rem;
+}
+
+.gallery-empty {
+    text-align: center;
+    padding: 4rem 2rem;
+    color: #666;
+}
+
+.gallery-date-display {
+    background: #e3f2fd;
+    padding: 1rem;
+    border-radius: 8px;
+    margin-bottom: 1.5rem;
+}
+
+.gallery-date-display h2 {
+    margin: 0;
+    color: #1565c0;
+}
+
+/* Lightbox styles */
+.lightbox {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.9);
+    z-index: 1000;
+    justify-content: center;
+    align-items: center;
+}
+
+.lightbox.active {
+    display: flex;
+}
+
+.lightbox img {
+    max-width: 90%;
+    max-height: 90%;
+    object-fit: contain;
+}
+
+.lightbox-close {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    color: white;
+    font-size: 2rem;
+    cursor: pointer;
+    background: none;
+    border: none;
+}
+
+@media (max-width: 768px) {
+    .gallery-grid {
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+        gap: 1rem;
+    }
+
+    .gallery-filters {
+        flex-direction: column;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="gallery-page">
+    <div class="gallery-header">
+        <h1>Letters From Dick Gallery</h1>
+        <p>Images and artifacts from the book</p>
+        {% if is_admin_ip %}
+        <a href="{{ url_for('gallery_upload') }}" class="btn btn-primary">Upload Image</a>
+        <a href="{{ url_for('admin_gallery') }}" class="btn btn-secondary">Gallery Admin</a>
+        {% endif %}
+    </div>
+
+    {% if date_display %}
+    <div class="gallery-date-display">
+        <h2>Images for {{ date_display }}</h2>
+    </div>
+    {% endif %}
+
+    <div class="gallery-filters">
+        <select id="section-filter" onchange="filterBySection(this.value)">
+            <option value="">All Sections</option>
+            {% for section in sections %}
+            <option value="{{ section.identifier }}" {% if current_section == section.identifier %}selected{% endif %}>
+                {{ section.name }} ({{ section.image_count }})
+            </option>
+            {% endfor %}
+        </select>
+
+        <select id="sort-filter" onchange="sortBy(this.value)">
+            <option value="date" {% if current_sort == 'date' %}selected{% endif %}>Sort by Date</option>
+            <option value="title" {% if current_sort == 'title' %}selected{% endif %}>Sort by Title</option>
+            <option value="upload" {% if current_sort == 'upload' %}selected{% endif %}>Sort by Upload</option>
+        </select>
+
+        <input type="date" id="date-filter" value="{{ current_date or '' }}" onchange="filterByDate(this.value)" placeholder="Filter by date">
+
+        {% if current_section or current_date %}
+        <a href="{{ url_for('gallery_index') }}" class="btn btn-secondary">Clear Filters</a>
+        {% endif %}
+    </div>
+
+    {% if images %}
+    <div class="gallery-grid">
+        {% for image in images %}
+        <div class="gallery-item" data-id="{{ image.id }}">
+            <a href="{{ url_for('gallery_image', identifier=image.identifier) }}">
+                <div class="gallery-thumbnail">
+                    {% if image.thumbnail %}
+                    <img src="{{ url_for('static', filename='uploads/gallery/thumbnails/' + image.thumbnail) }}"
+                         alt="{{ image.title }}"
+                         loading="lazy">
+                    {% else %}
+                    <img src="{{ url_for('static', filename='uploads/gallery/images/' + image.filename) }}"
+                         alt="{{ image.title }}"
+                         loading="lazy">
+                    {% endif %}
+                </div>
+                <div class="gallery-item-info">
+                    <h3>{{ image.title }}</h3>
+                    {% if image.significance_date %}
+                    <span class="gallery-item-date">{{ image.significance_date.strftime('%B %d, %Y') }}</span>
+                    {% endif %}
+                </div>
+            </a>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="gallery-empty">
+        <h2>No images found</h2>
+        <p>
+            {% if current_section or current_date %}
+            Try adjusting your filters.
+            {% else %}
+            The gallery is empty. {% if is_admin_ip %}<a href="{{ url_for('gallery_upload') }}">Upload the first image</a>.{% endif %}
+            {% endif %}
+        </p>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Lightbox -->
+<div class="lightbox" id="lightbox">
+    <button class="lightbox-close" onclick="closeLightbox()">&times;</button>
+    <img src="" alt="" id="lightbox-img">
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function filterBySection(identifier) {
+    if (identifier) {
+        window.location.href = '{{ url_for("gallery_index") }}?section=' + identifier;
+    } else {
+        window.location.href = '{{ url_for("gallery_index") }}';
+    }
+}
+
+function sortBy(sort) {
+    const params = new URLSearchParams(window.location.search);
+    params.set('sort', sort);
+    window.location.href = '{{ url_for("gallery_index") }}?' + params.toString();
+}
+
+function filterByDate(date) {
+    if (date) {
+        window.location.href = '{{ url_for("gallery_index") }}?date=' + date;
+    } else {
+        window.location.href = '{{ url_for("gallery_index") }}';
+    }
+}
+
+// Lightbox functions
+function openLightbox(src) {
+    document.getElementById('lightbox-img').src = src;
+    document.getElementById('lightbox').classList.add('active');
+    document.body.style.overflow = 'hidden';
+}
+
+function closeLightbox() {
+    document.getElementById('lightbox').classList.remove('active');
+    document.body.style.overflow = '';
+}
+
+// Close lightbox on escape
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        closeLightbox();
+    }
+});
+
+// Close lightbox on background click
+document.getElementById('lightbox').addEventListener('click', function(e) {
+    if (e.target === this) {
+        closeLightbox();
+    }
+});
+</script>
+{% endblock %}

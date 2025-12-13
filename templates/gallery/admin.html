@@ -1,0 +1,229 @@
+{% extends "base.html" %}
+
+{% block title %}Gallery Admin - HastingTX{% endblock %}
+
+{% block nav_extra %}
+<li><a href="{{ url_for('gallery_upload') }}">Upload Image</a></li>
+{% endblock %}
+
+{% block content %}
+<div class="admin-page">
+    <h1>Gallery Admin</h1>
+    <p><a href="{{ url_for('gallery_index') }}">View Public Gallery</a> | <a href="{{ url_for('admin') }}">Music Admin</a></p>
+
+    <div class="admin-stats">
+        <div class="stat-card">
+            <h3>{{ total_images }}</h3>
+            <p>Total Images</p>
+        </div>
+        <div class="stat-card">
+            <h3>{{ sections|length }}</h3>
+            <p>Sections</p>
+        </div>
+    </div>
+
+    <!-- Sections Management -->
+    <div class="admin-section">
+        <div class="section-header">
+            <h2>Sections</h2>
+            <button class="btn btn-primary" onclick="showCreateSectionForm()">Create Section</button>
+        </div>
+
+        <div id="create-section-form" class="playlist-form" style="display: none;">
+            <h3>Create New Section</h3>
+            <form onsubmit="createSection(event)">
+                <div class="form-group">
+                    <label for="section-name">Name *</label>
+                    <input type="text" id="section-name" required>
+                </div>
+                <div class="form-group">
+                    <label for="section-description">Description</label>
+                    <textarea id="section-description" rows="2"></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="section-sort">Sort Order</label>
+                    <input type="number" id="section-sort" value="0">
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">Create</button>
+                    <button type="button" class="btn btn-secondary" onclick="hideCreateSectionForm()">Cancel</button>
+                </div>
+            </form>
+        </div>
+
+        {% if sections %}
+        <table class="admin-table">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Images</th>
+                    <th>Sort Order</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for section in sections %}
+                <tr>
+                    <td>
+                        <a href="{{ url_for('gallery_section', identifier=section.identifier) }}">
+                            {{ section.name }}
+                        </a>
+                    </td>
+                    <td>{{ section.image_count }}</td>
+                    <td>{{ section.sort_order }}</td>
+                    <td>
+                        <a href="{{ url_for('gallery_section', identifier=section.identifier) }}" class="btn-small">View</a>
+                        {% if section.identifier != 'uncategorized' %}
+                        <button class="btn-small btn-danger" onclick="deleteSection({{ section.id }}, '{{ section.name }}')">Delete</button>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% endif %}
+    </div>
+
+    <!-- Images Management -->
+    <div class="admin-section">
+        <div class="section-header">
+            <h2>Images</h2>
+            <a href="{{ url_for('gallery_upload') }}" class="btn btn-primary">Upload New Image</a>
+        </div>
+
+        {% if images %}
+        <table class="admin-table">
+            <thead>
+                <tr>
+                    <th>Thumbnail</th>
+                    <th>Title</th>
+                    <th>Date</th>
+                    <th>Section</th>
+                    <th>Views</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for image in images %}
+                <tr>
+                    <td style="width: 80px;">
+                        {% if image.thumbnail %}
+                        <img src="{{ url_for('static', filename='uploads/gallery/thumbnails/' + image.thumbnail) }}"
+                             alt="{{ image.title }}"
+                             style="width: 60px; height: 45px; object-fit: cover; border-radius: 4px;">
+                        {% else %}
+                        <div style="width: 60px; height: 45px; background: #eee; border-radius: 4px;"></div>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <a href="{{ url_for('gallery_image', identifier=image.identifier) }}">
+                            {{ image.title }}
+                        </a>
+                    </td>
+                    <td>{{ image.significance_date.strftime('%Y-%m-%d') if image.significance_date else '-' }}</td>
+                    <td>{{ image.section_name or 'None' }}</td>
+                    <td>{{ image.view_count or 0 }}</td>
+                    <td>
+                        <a href="{{ url_for('gallery_image', identifier=image.identifier) }}" class="btn-small">View</a>
+                        <a href="{{ url_for('edit_gallery_image', image_id=image.id) }}" class="btn-small">Edit</a>
+                        <button class="btn-small btn-danger" onclick="deleteImage({{ image.id }}, '{{ image.title }}')">Delete</button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p>No images uploaded yet. <a href="{{ url_for('gallery_upload') }}">Upload the first image</a>.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function showCreateSectionForm() {
+    document.getElementById('create-section-form').style.display = 'block';
+}
+
+function hideCreateSectionForm() {
+    document.getElementById('create-section-form').style.display = 'none';
+}
+
+async function createSection(event) {
+    event.preventDefault();
+
+    const name = document.getElementById('section-name').value;
+    const description = document.getElementById('section-description').value;
+    const sortOrder = parseInt(document.getElementById('section-sort').value) || 0;
+
+    try {
+        const response = await fetch('/admin/gallery/sections/create', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                name: name,
+                description: description,
+                sort_order: sortOrder
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            alert('Section created successfully!');
+            location.reload();
+        } else {
+            alert('Error: ' + data.error);
+        }
+    } catch (error) {
+        alert('Error creating section: ' + error.message);
+    }
+}
+
+async function deleteSection(sectionId, name) {
+    if (!confirm(`Are you sure you want to delete section "${name}"? Images will be moved to Uncategorized.`)) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/admin/gallery/sections/${sectionId}`, {
+            method: 'DELETE'
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            alert('Section deleted successfully');
+            location.reload();
+        } else {
+            alert('Error: ' + data.error);
+        }
+    } catch (error) {
+        alert('Error deleting section: ' + error.message);
+    }
+}
+
+async function deleteImage(imageId, title) {
+    if (!confirm(`Are you sure you want to delete "${title}"? This cannot be undone.`)) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/admin/gallery/images/${imageId}`, {
+            method: 'DELETE'
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            alert('Image deleted successfully');
+            location.reload();
+        } else {
+            alert('Error: ' + data.error);
+        }
+    } catch (error) {
+        alert('Error deleting image: ' + error.message);
+    }
+}
+</script>
+{% endblock %}

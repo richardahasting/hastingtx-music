@@ -1,0 +1,326 @@
+{% extends "base.html" %}
+
+{% block title %}{{ image.title }} - Letters From Dick Gallery{% endblock %}
+
+{% block extra_css %}
+<style>
+.image-page {
+    padding: 2rem 0;
+}
+
+.image-navigation {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 1.5rem;
+}
+
+.image-navigation a {
+    padding: 0.5rem 1rem;
+    background: #f0f0f0;
+    border-radius: 4px;
+    text-decoration: none;
+    color: #333;
+}
+
+.image-navigation a:hover {
+    background: #e0e0e0;
+}
+
+.image-navigation .nav-disabled {
+    visibility: hidden;
+}
+
+.image-container {
+    display: grid;
+    grid-template-columns: 1fr 350px;
+    gap: 2rem;
+}
+
+.image-main {
+    background: #000;
+    border-radius: 8px;
+    overflow: hidden;
+    text-align: center;
+}
+
+.image-main img {
+    max-width: 100%;
+    max-height: 80vh;
+    object-fit: contain;
+    cursor: zoom-in;
+}
+
+.image-sidebar {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 1.5rem;
+}
+
+.image-sidebar h1 {
+    font-size: 1.5rem;
+    margin-bottom: 1rem;
+    line-height: 1.3;
+}
+
+.image-meta {
+    margin-bottom: 1.5rem;
+}
+
+.image-meta-item {
+    margin-bottom: 0.75rem;
+}
+
+.image-meta-item label {
+    display: block;
+    font-weight: bold;
+    font-size: 0.875rem;
+    color: #666;
+    margin-bottom: 0.25rem;
+}
+
+.image-meta-item .value {
+    color: #333;
+}
+
+.image-description {
+    margin-bottom: 1.5rem;
+    line-height: 1.6;
+}
+
+.image-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.image-actions a {
+    text-align: center;
+}
+
+.section-link {
+    display: inline-block;
+    background: #e3f2fd;
+    color: #1565c0;
+    padding: 0.25rem 0.75rem;
+    border-radius: 4px;
+    text-decoration: none;
+    font-size: 0.875rem;
+}
+
+.section-link:hover {
+    background: #bbdefb;
+}
+
+/* Lightbox */
+.lightbox {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.95);
+    z-index: 1000;
+    justify-content: center;
+    align-items: center;
+}
+
+.lightbox.active {
+    display: flex;
+}
+
+.lightbox img {
+    max-width: 95%;
+    max-height: 95%;
+    object-fit: contain;
+}
+
+.lightbox-close {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    color: white;
+    font-size: 2rem;
+    cursor: pointer;
+    background: none;
+    border: none;
+}
+
+.lightbox-nav {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    color: white;
+    font-size: 3rem;
+    cursor: pointer;
+    background: rgba(0,0,0,0.5);
+    border: none;
+    padding: 1rem;
+    border-radius: 4px;
+}
+
+.lightbox-nav.prev {
+    left: 1rem;
+}
+
+.lightbox-nav.next {
+    right: 1rem;
+}
+
+.view-count {
+    color: #999;
+    font-size: 0.875rem;
+    margin-top: 1rem;
+}
+
+@media (max-width: 900px) {
+    .image-container {
+        grid-template-columns: 1fr;
+    }
+
+    .image-sidebar {
+        order: -1;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="image-page">
+    <div class="image-navigation">
+        {% if prev_image %}
+        <a href="{{ url_for('gallery_image', identifier=prev_image.identifier) }}">&larr; Previous</a>
+        {% else %}
+        <span class="nav-disabled">&larr; Previous</span>
+        {% endif %}
+
+        <a href="{{ url_for('gallery_index') }}">Back to Gallery</a>
+
+        {% if next_image %}
+        <a href="{{ url_for('gallery_image', identifier=next_image.identifier) }}">Next &rarr;</a>
+        {% else %}
+        <span class="nav-disabled">Next &rarr;</span>
+        {% endif %}
+    </div>
+
+    <div class="image-container">
+        <div class="image-main">
+            <img src="{{ url_for('static', filename='uploads/gallery/images/' + image.filename) }}"
+                 alt="{{ image.title }}"
+                 onclick="openLightbox(this.src)">
+        </div>
+
+        <div class="image-sidebar">
+            <h1>{{ image.title }}</h1>
+
+            <div class="image-meta">
+                {% if image.significance_date %}
+                <div class="image-meta-item">
+                    <label>Date</label>
+                    <span class="value">{{ image.significance_date.strftime('%B %d, %Y') }}</span>
+                </div>
+                {% endif %}
+
+                {% if section %}
+                <div class="image-meta-item">
+                    <label>Section</label>
+                    <a href="{{ url_for('gallery_section', identifier=section.identifier) }}" class="section-link">
+                        {{ section.name }}
+                    </a>
+                </div>
+                {% endif %}
+
+                {% if image.source %}
+                <div class="image-meta-item">
+                    <label>Source</label>
+                    <span class="value">{{ image.source }}</span>
+                </div>
+                {% endif %}
+
+                {% if image.width and image.height %}
+                <div class="image-meta-item">
+                    <label>Dimensions</label>
+                    <span class="value">{{ image.width }} x {{ image.height }} px</span>
+                </div>
+                {% endif %}
+
+                <div class="image-meta-item">
+                    <label>File Type</label>
+                    <span class="value">{{ image.file_type|upper }}</span>
+                </div>
+            </div>
+
+            {% if image.description %}
+            <div class="image-description">
+                {{ image.description }}
+            </div>
+            {% endif %}
+
+            <div class="image-actions">
+                <a href="{{ url_for('gallery_download', identifier=image.identifier) }}" class="btn btn-primary">
+                    Download Full Size
+                </a>
+
+                {% if is_admin_ip %}
+                <a href="{{ url_for('edit_gallery_image', image_id=image.id) }}" class="btn btn-secondary">
+                    Edit Image
+                </a>
+                {% endif %}
+            </div>
+
+            <p class="view-count">{{ image.view_count }} views</p>
+        </div>
+    </div>
+</div>
+
+<!-- Lightbox -->
+<div class="lightbox" id="lightbox">
+    <button class="lightbox-close" onclick="closeLightbox()">&times;</button>
+    {% if prev_image %}
+    <button class="lightbox-nav prev" onclick="window.location='{{ url_for('gallery_image', identifier=prev_image.identifier) }}'">&larr;</button>
+    {% endif %}
+    <img src="" alt="" id="lightbox-img">
+    {% if next_image %}
+    <button class="lightbox-nav next" onclick="window.location='{{ url_for('gallery_image', identifier=next_image.identifier) }}'">&rarr;</button>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function openLightbox(src) {
+    document.getElementById('lightbox-img').src = src;
+    document.getElementById('lightbox').classList.add('active');
+    document.body.style.overflow = 'hidden';
+}
+
+function closeLightbox() {
+    document.getElementById('lightbox').classList.remove('active');
+    document.body.style.overflow = '';
+}
+
+// Keyboard navigation
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        closeLightbox();
+    }
+    {% if prev_image %}
+    if (e.key === 'ArrowLeft') {
+        window.location = '{{ url_for("gallery_image", identifier=prev_image.identifier) }}';
+    }
+    {% endif %}
+    {% if next_image %}
+    if (e.key === 'ArrowRight') {
+        window.location = '{{ url_for("gallery_image", identifier=next_image.identifier) }}';
+    }
+    {% endif %}
+});
+
+// Close lightbox on background click
+document.getElementById('lightbox').addEventListener('click', function(e) {
+    if (e.target === this) {
+        closeLightbox();
+    }
+});
+</script>
+{% endblock %}

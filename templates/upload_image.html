@@ -1,0 +1,217 @@
+{% extends "base.html" %}
+
+{% block title %}Upload Image - Gallery Admin{% endblock %}
+
+{% block content %}
+<div class="upload-page">
+    <h1>Upload Gallery Image</h1>
+    <p><a href="{{ url_for('admin_gallery') }}">Back to Gallery Admin</a></p>
+
+    <div id="upload-form-container">
+        <form id="upload-form" enctype="multipart/form-data">
+            <div class="form-section">
+                <h3>File Upload</h3>
+
+                <div class="file-drop-zone" id="drop-zone">
+                    <p>Drag and drop image here or click to select</p>
+                    <p><small>Supported: JPG, PNG, GIF, WebP, PDF</small></p>
+                    <input type="file" id="file-input" name="file" accept=".jpg,.jpeg,.png,.gif,.webp,.pdf" required>
+                </div>
+
+                <div id="file-info" class="file-info" style="display: none;">
+                    <p><strong>Selected file:</strong> <span id="filename"></span></p>
+                    <p><strong>Size:</strong> <span id="filesize"></span></p>
+                </div>
+
+                <div id="image-preview" style="display: none; margin-top: 1rem; text-align: center;">
+                    <img id="preview-img" src="" alt="Preview" style="max-width: 300px; max-height: 200px; border-radius: 8px;">
+                </div>
+
+                <div id="upload-progress" class="upload-progress" style="display: none;">
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progress-fill"></div>
+                    </div>
+                    <p id="progress-text">Uploading...</p>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <h3>Image Information</h3>
+
+                <div class="form-group">
+                    <label for="title">Title *</label>
+                    <input type="text" id="title" name="title" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="description">Description</label>
+                    <textarea id="description" name="description" rows="4"></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label for="significance_date">Significance Date</label>
+                    <input type="date" id="significance_date" name="significance_date">
+                    <small>The date this image relates to (e.g., the date of a letter, event, etc.)</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="source">Source (optional)</label>
+                    <input type="text" id="source" name="source" placeholder="e.g., Family collection, National Archives">
+                </div>
+
+                <div class="form-group">
+                    <label for="section_id">Section</label>
+                    <select id="section_id" name="section_id">
+                        <option value="">-- Select Section --</option>
+                        {% for section in sections %}
+                        <option value="{{ section.id }}">{{ section.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="identifier">URL Identifier (auto-generated if blank)</label>
+                    <input type="text" id="identifier" name="identifier" placeholder="my-image-title">
+                    <small>Will be used in the URL: /gallery/image/<strong>identifier</strong></small>
+                </div>
+            </div>
+
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary" id="submit-btn">Upload Image</button>
+                <a href="{{ url_for('admin_gallery') }}" class="btn btn-secondary">Cancel</a>
+            </div>
+        </form>
+
+        <div id="upload-success" class="success-message" style="display: none;">
+            <h2>Upload Successful!</h2>
+            <p id="success-message"></p>
+            <div class="success-actions">
+                <a id="view-image-link" href="#" class="btn btn-primary">View Image</a>
+                <a href="{{ url_for('gallery_upload') }}" class="btn btn-secondary">Upload Another</a>
+                <a href="{{ url_for('admin_gallery') }}" class="btn btn-secondary">Back to Admin</a>
+            </div>
+        </div>
+
+        <div id="upload-error" class="error-message" style="display: none;">
+            <h2>Upload Failed</h2>
+            <p id="error-message"></p>
+            <button onclick="location.reload()" class="btn btn-secondary">Try Again</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const dropZone = document.getElementById('drop-zone');
+const fileInput = document.getElementById('file-input');
+const fileInfo = document.getElementById('file-info');
+const uploadForm = document.getElementById('upload-form');
+const uploadProgress = document.getElementById('upload-progress');
+const submitBtn = document.getElementById('submit-btn');
+const imagePreview = document.getElementById('image-preview');
+const previewImg = document.getElementById('preview-img');
+
+// Drag and drop handlers
+dropZone.addEventListener('click', () => fileInput.click());
+
+dropZone.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    dropZone.classList.add('dragover');
+});
+
+dropZone.addEventListener('dragleave', () => {
+    dropZone.classList.remove('dragover');
+});
+
+dropZone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dropZone.classList.remove('dragover');
+
+    const files = e.dataTransfer.files;
+    if (files.length > 0) {
+        fileInput.files = files;
+        updateFileInfo(files[0]);
+    }
+});
+
+fileInput.addEventListener('change', (e) => {
+    if (e.target.files.length > 0) {
+        updateFileInfo(e.target.files[0]);
+    }
+});
+
+function updateFileInfo(file) {
+    document.getElementById('filename').textContent = file.name;
+    document.getElementById('filesize').textContent = formatFileSize(file.size);
+    fileInfo.style.display = 'block';
+
+    // Auto-populate title if empty
+    if (!document.getElementById('title').value) {
+        const title = file.name.replace(/\.[^.]+$/, '').replace(/[-_]/g, ' ');
+        document.getElementById('title').value = title;
+    }
+
+    // Show image preview for image files
+    if (file.type.startsWith('image/')) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            previewImg.src = e.target.result;
+            imagePreview.style.display = 'block';
+        };
+        reader.readAsDataURL(file);
+    } else {
+        imagePreview.style.display = 'none';
+    }
+}
+
+function formatFileSize(bytes) {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+}
+
+// Form submission
+uploadForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const formData = new FormData(uploadForm);
+
+    // Show progress
+    uploadProgress.style.display = 'block';
+    submitBtn.disabled = true;
+
+    try {
+        const response = await fetch('/admin/gallery/upload', {
+            method: 'POST',
+            body: formData
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            // Show success message
+            document.getElementById('upload-form-container').querySelector('form').style.display = 'none';
+            document.getElementById('success-message').textContent = `"${data.image.title}" has been uploaded successfully!`;
+            document.getElementById('view-image-link').href = data.url;
+            document.getElementById('upload-success').style.display = 'block';
+        } else {
+            throw new Error(data.error || 'Upload failed');
+        }
+    } catch (error) {
+        console.error('Upload error:', error);
+        document.getElementById('error-message').textContent = error.message;
+        document.getElementById('upload-error').style.display = 'block';
+        uploadProgress.style.display = 'none';
+        submitBtn.disabled = false;
+    }
+});
+
+// Pre-select section if provided in URL
+const urlParams = new URLSearchParams(window.location.search);
+const sectionParam = urlParams.get('section');
+if (sectionParam) {
+    document.getElementById('section_id').value = sectionParam;
+}
+</script>
+{% endblock %}
