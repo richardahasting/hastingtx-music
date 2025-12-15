@@ -60,9 +60,9 @@
                 {% endif %}
             </div>
             <div class="day-action">
-                {% if progress and (devotional.day_number in progress.completed_days or devotional.day_number <= progress.current_day) %}
+                {% if devotional.day_number == 1 or (progress and (devotional.day_number in progress.completed_days or devotional.day_number <= progress.current_day)) %}
                 <a href="{{ url_for('devotional_day', identifier=thread.identifier, day_number=devotional.day_number) }}" class="btn btn-small">
-                    {% if devotional.day_number in progress.completed_days %}Review{% else %}Read{% endif %}
+                    {% if progress and devotional.day_number in progress.completed_days %}Review{% else %}Read{% endif %}
                 </a>
                 {% else %}
                 <span class="locked">&#128274;</span>
