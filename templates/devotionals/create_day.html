@@ -1,0 +1,330 @@
+{% extends "base.html" %}
+
+{% block title %}{% if editing %}Edit Day {{ devotional.day_number }}{% else %}Add Day{% endif %} - {{ thread.title }}{% endblock %}
+
+{% block content %}
+<div class="create-page">
+    <h1>{% if editing %}Edit Day {{ devotional.day_number }}{% else %}Add New Day{% endif %}</h1>
+    <p>
+        <a href="{{ url_for('admin_devotionals') }}">Devotional Admin</a> &raquo;
+        <a href="{{ url_for('admin_edit_thread', thread_id=thread.id) }}">{{ thread.title }}</a>
+    </p>
+
+    <div class="form-container">
+        <form id="day-form">
+            <div class="form-row">
+                <div class="form-group" style="flex: 0 0 120px;">
+                    <label for="day_number">Day Number *</label>
+                    <input type="number" id="day_number" name="day_number" min="1" value="{{ devotional.day_number if editing else suggested_day }}" required>
+                </div>
+
+                <div class="form-group" style="flex: 1;">
+                    <label for="title">Title *</label>
+                    <input type="text" id="title" name="title" value="{{ devotional.title if editing else '' }}" required placeholder="e.g., Finding Peace in the Storm">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="scripture_reference">Scripture Reference</label>
+                <input type="text" id="scripture_reference" name="scripture_reference" value="{{ devotional.scripture_reference if editing else '' }}" placeholder="e.g., John 3:16-17">
+            </div>
+
+            <div class="form-group">
+                <label for="scripture_text">Scripture Text</label>
+                <textarea id="scripture_text" name="scripture_text" rows="4" placeholder="The scripture passage...">{{ devotional.scripture_text if editing else '' }}</textarea>
+            </div>
+
+            <div class="form-group">
+                <label for="content">Devotional Content *</label>
+                <textarea id="content" name="content" rows="12" required placeholder="The main devotional content...">{{ devotional.content if editing else '' }}</textarea>
+                <small>You can use basic HTML for formatting (p, strong, em, br, ul, ol, li)</small>
+            </div>
+
+            <div class="form-group">
+                <label for="reflection_questions">Reflection Questions</label>
+                <textarea id="reflection_questions" name="reflection_questions" rows="4" placeholder="Questions for personal reflection...">{{ devotional.reflection_questions if editing else '' }}</textarea>
+                <small>Optional. Use line breaks to separate questions.</small>
+            </div>
+
+            <div class="form-group">
+                <label for="prayer">Closing Prayer</label>
+                <textarea id="prayer" name="prayer" rows="4" placeholder="A closing prayer...">{{ devotional.prayer if editing else '' }}</textarea>
+            </div>
+
+            {% if editing and devotional.audio_filename %}
+            <div class="form-group">
+                <label>Audio</label>
+                <div class="audio-info">
+                    <audio controls>
+                        <source src="{{ url_for('static', filename='uploads/devotionals/audio/' + devotional.audio_filename) }}" type="audio/mpeg">
+                    </audio>
+                    {% if devotional.audio_duration %}
+                    <p class="audio-duration">Duration: {{ (devotional.audio_duration // 60) }}:{{ '%02d' % (devotional.audio_duration % 60) }}</p>
+                    {% endif %}
+                    <button type="button" onclick="regenerateAudio()" class="btn btn-small btn-secondary">Regenerate Audio</button>
+                </div>
+            </div>
+            {% endif %}
+
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">
+                    {% if editing %}Save Changes{% else %}Add Day{% endif %}
+                </button>
+                {% if not editing %}
+                <button type="button" id="save-add-another" class="btn btn-secondary">Save & Add Another</button>
+                {% endif %}
+                <a href="{{ url_for('admin_edit_thread', thread_id=thread.id) }}" class="btn btn-secondary">Cancel</a>
+            </div>
+        </form>
+
+        <div id="form-message" class="message" style="display: none;"></div>
+    </div>
+</div>
+
+<style>
+.create-page {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 2rem 1rem;
+}
+
+.form-container {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    padding: 2rem;
+}
+
+.form-group {
+    margin-bottom: 1.5rem;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+    color: #333;
+}
+
+.form-group input[type="text"],
+.form-group input[type="number"],
+.form-group textarea {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 1rem;
+    font-family: inherit;
+}
+
+.form-group textarea {
+    resize: vertical;
+}
+
+.form-group input:focus,
+.form-group textarea:focus {
+    outline: none;
+    border-color: #8B4513;
+}
+
+.form-group small {
+    display: block;
+    margin-top: 0.25rem;
+    color: #666;
+    font-size: 0.85rem;
+}
+
+.form-row {
+    display: flex;
+    gap: 1.5rem;
+}
+
+.audio-info {
+    background: #f9f9f9;
+    padding: 1rem;
+    border-radius: 6px;
+}
+
+.audio-info audio {
+    width: 100%;
+    max-width: 400px;
+}
+
+.audio-duration {
+    margin: 0.5rem 0;
+    color: #666;
+    font-size: 0.9rem;
+}
+
+.form-actions {
+    display: flex;
+    gap: 1rem;
+    margin-top: 2rem;
+    flex-wrap: wrap;
+}
+
+.btn {
+    display: inline-block;
+    padding: 0.75rem 1.5rem;
+    border: none;
+    border-radius: 6px;
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: none;
+}
+
+.btn-small {
+    padding: 0.5rem 1rem;
+    font-size: 0.9rem;
+}
+
+.btn-primary {
+    background: #8B4513;
+    color: white;
+}
+
+.btn-primary:hover {
+    background: #A0522D;
+}
+
+.btn-secondary {
+    background: #f0f0f0;
+    color: #333;
+}
+
+.btn-secondary:hover {
+    background: #e0e0e0;
+}
+
+.message {
+    margin-top: 1rem;
+    padding: 1rem;
+    border-radius: 6px;
+}
+
+.message.success {
+    background: #d4edda;
+    color: #155724;
+}
+
+.message.error {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+@media (max-width: 600px) {
+    .form-row {
+        flex-direction: column;
+        gap: 0;
+    }
+
+    .form-row .form-group {
+        flex: none !important;
+    }
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('day-form');
+    const messageDiv = document.getElementById('form-message');
+    let addAnother = false;
+
+    {% if not editing %}
+    document.getElementById('save-add-another').addEventListener('click', function() {
+        addAnother = true;
+        form.dispatchEvent(new Event('submit'));
+    });
+    {% endif %}
+
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+
+        const formData = new FormData(form);
+        const submitBtn = form.querySelector('button[type="submit"]');
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Saving...';
+
+        {% if editing %}
+        const url = '{{ url_for("admin_edit_devotional", devotional_id=devotional.id) }}';
+        {% else %}
+        const url = '{{ url_for("create_devotional_day", thread_id=thread.id) }}';
+        {% endif %}
+
+        fetch(url, {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            messageDiv.style.display = 'block';
+            if (data.success) {
+                messageDiv.className = 'message success';
+                {% if editing %}
+                messageDiv.textContent = 'Day updated successfully!';
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Save Changes';
+                {% else %}
+                if (addAnother) {
+                    messageDiv.textContent = 'Day added! Ready for next one.';
+                    // Clear form and increment day number
+                    form.reset();
+                    document.getElementById('day_number').value = parseInt(data.devotional.day_number) + 1;
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = 'Add Day';
+                    addAnother = false;
+                    // Scroll to top
+                    window.scrollTo(0, 0);
+                } else {
+                    messageDiv.textContent = 'Day added! Redirecting...';
+                    setTimeout(() => {
+                        window.location.href = data.url;
+                    }, 1000);
+                }
+                {% endif %}
+            } else {
+                messageDiv.className = 'message error';
+                messageDiv.textContent = data.error || 'Save failed';
+                submitBtn.disabled = false;
+                submitBtn.textContent = '{% if editing %}Save Changes{% else %}Add Day{% endif %}';
+                addAnother = false;
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            messageDiv.style.display = 'block';
+            messageDiv.className = 'message error';
+            messageDiv.textContent = 'An error occurred';
+            submitBtn.disabled = false;
+            submitBtn.textContent = '{% if editing %}Save Changes{% else %}Add Day{% endif %}';
+            addAnother = false;
+        });
+    });
+});
+
+{% if editing %}
+function regenerateAudio() {
+    if (!confirm('Regenerate audio for this devotional?\n\nThis will replace the existing audio file.')) {
+        return;
+    }
+
+    fetch('/admin/devotionals/days/{{ devotional.id }}/generate-audio', {
+        method: 'POST'
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(`Audio regenerated!\nDuration: ${data.duration_formatted}`);
+            location.reload();
+        } else {
+            alert(data.error || 'Audio generation failed');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('An error occurred');
+    });
+}
+{% endif %}
+</script>
+{% endblock %}

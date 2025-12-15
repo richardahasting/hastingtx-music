@@ -60,10 +60,12 @@
                     </li>
                     {% endif %}
                     <li><a href="{{ url_for('gallery_index') }}">Letters From Dick</a></li>
+                    <li><a href="{{ url_for('devotionals_index') }}">Devotionals</a></li>
                     {% if is_admin_ip %}
                     <li><a href="{{ url_for('upload') }}" class="admin-link">Upload</a></li>
                     <li><a href="{{ url_for('admin') }}" class="admin-link">Admin</a></li>
                     <li><a href="{{ url_for('admin_gallery') }}" class="admin-link">Gallery Admin</a></li>
+                    <li><a href="{{ url_for('admin_devotionals') }}" class="admin-link">Devotional Admin</a></li>
                     {% endif %}
                     {% block nav_extra %}{% endblock %}
                 </ul>

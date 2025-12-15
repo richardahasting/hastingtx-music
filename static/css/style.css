@@ -1563,3 +1563,143 @@ footer {
         font-size: 1.5rem;
     }
 }
+
+/* ============================================
+   Devotional Header Styles
+   ============================================ */
+
+.devotional-header {
+    background: linear-gradient(135deg, #8B4513 0%, #A0522D 100%);
+}
+
+.devotional-navbar {
+    padding: 0.75rem 0;
+}
+
+.devotional-navbar .logo a {
+    font-size: 1.3rem;
+    font-weight: 600;
+}
+
+.devotional-navbar .nav-links {
+    gap: 1.5rem;
+}
+
+.devotional-navbar .nav-links a {
+    font-size: 0.95rem;
+}
+
+/* Save Progress Section */
+.save-progress-section {
+    background: #f5f5dc;
+    padding: 1rem 0;
+    margin-top: 2rem;
+}
+
+.save-progress-box {
+    max-width: 500px;
+    margin: 0 auto;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    overflow: hidden;
+}
+
+.save-progress-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1rem;
+    cursor: pointer;
+    background: linear-gradient(135deg, #8B4513 0%, #A0522D 100%);
+    color: white;
+    font-weight: 600;
+}
+
+.save-progress-header:hover {
+    opacity: 0.95;
+}
+
+.save-icon {
+    font-size: 1.1rem;
+}
+
+.toggle-arrow {
+    margin-left: auto;
+    font-size: 0.8rem;
+}
+
+.save-progress-content {
+    padding: 1rem;
+}
+
+.save-progress-content p {
+    margin: 0 0 1rem;
+    color: #666;
+    font-size: 0.9rem;
+}
+
+.save-progress-form {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.save-progress-form input {
+    flex: 1;
+    padding: 0.6rem 0.75rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 1rem;
+}
+
+.save-progress-form input:focus {
+    outline: none;
+    border-color: #8B4513;
+}
+
+.btn-save {
+    background: #8B4513;
+    color: white;
+    border: none;
+    padding: 0.6rem 1rem;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.btn-save:hover {
+    background: #A0522D;
+}
+
+.btn-save:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.save-progress-message {
+    margin-top: 0.75rem;
+    padding: 0.6rem;
+    border-radius: 4px;
+    font-size: 0.9rem;
+}
+
+.save-progress-message.success {
+    background: #d4edda;
+    color: #155724;
+}
+
+.save-progress-message.error {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+@media (max-width: 500px) {
+    .save-progress-form {
+        flex-direction: column;
+    }
+
+    .btn-save {
+        width: 100%;
+    }
+}

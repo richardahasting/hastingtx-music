@@ -1,0 +1,487 @@
+{% extends "base.html" %}
+
+{% block title %}Devotional Admin{% endblock %}
+
+{% block content %}
+<div class="admin-page">
+    <h1>Devotional Admin</h1>
+    <p><a href="{{ url_for('admin') }}">Back to Main Admin</a></p>
+
+    <div class="admin-section">
+        <div class="section-header">
+            <h2>Devotional Threads</h2>
+            <a href="{{ url_for('create_devotional_thread') }}" class="btn btn-primary">Create New Thread</a>
+        </div>
+
+        {% if threads %}
+        <table class="admin-table">
+            <thead>
+                <tr>
+                    <th>Title</th>
+                    <th>Author</th>
+                    <th>Days</th>
+                    <th>Devotionals</th>
+                    <th>Published</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for thread in threads %}
+                <tr>
+                    <td>
+                        <strong>{{ thread.title }}</strong>
+                        <br><small class="text-muted">/devotionals/{{ thread.identifier }}</small>
+                    </td>
+                    <td>{{ thread.author or '-' }}</td>
+                    <td>{{ thread.total_days }}</td>
+                    <td>{{ thread.devotional_count }}</td>
+                    <td>
+                        {% if thread.is_published %}
+                        <span class="badge badge-success">Published</span>
+                        {% else %}
+                        <span class="badge badge-warning">Draft</span>
+                        {% endif %}
+                    </td>
+                    <td class="actions">
+                        <a href="{{ url_for('admin_edit_thread', thread_id=thread.id) }}" class="btn btn-small">Edit</a>
+                        <a href="{{ url_for('create_devotional_day', thread_id=thread.id) }}" class="btn btn-small btn-secondary">Add Day</a>
+                        {% if thread.is_published %}
+                        <a href="{{ url_for('devotional_thread', identifier=thread.identifier) }}" class="btn btn-small btn-secondary" target="_blank">View</a>
+                        {% endif %}
+                        <button onclick="deleteThread({{ thread.id }}, '{{ thread.title }}')" class="btn btn-small btn-danger">Delete</button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p class="empty-state">No devotional threads yet. Create your first one!</p>
+        {% endif %}
+    </div>
+
+    <div class="admin-section">
+        <div class="section-header">
+            <h2>Import from JSON</h2>
+        </div>
+
+        <form id="import-form" enctype="multipart/form-data">
+            <div class="import-row">
+                <div class="file-input-wrapper">
+                    <input type="file" name="json_file" id="json_file" accept=".json" required>
+                    <label for="json_file" class="file-label">
+                        <span class="file-text">Choose JSON file...</span>
+                    </label>
+                </div>
+                <div class="import-options">
+                    <label class="checkbox-label">
+                        <input type="checkbox" name="publish" checked> Publish immediately
+                    </label>
+                    <label class="checkbox-label">
+                        <input type="checkbox" name="skip_audio"> Skip audio generation
+                    </label>
+                </div>
+                <button type="submit" class="btn btn-primary">Import</button>
+            </div>
+        </form>
+        <div id="import-result" class="import-result" style="display: none;"></div>
+
+        <details class="json-format-help">
+            <summary>JSON Format</summary>
+            <pre><code>{
+  "thread_id": "my-thread-identifier",
+  "thread_title": "My Thread Title",
+  "thread_description": "Description...",
+  "author": "Author Name",
+  "series": "Tabernacle",      // Optional - groups threads
+  "series_position": 0,        // Optional - order in series
+  "days": [
+    {
+      "day": 1,
+      "title": "Day 1 Title",
+      "scripture_reference": "John 3:16",
+      "scripture_text": "For God so loved...",
+      "devotional": "Main content...",
+      "reflection": "Questions...",
+      "prayer": "Prayer text..."
+    }
+  ]
+}</code></pre>
+        </details>
+    </div>
+
+    <div class="admin-section">
+        <div class="section-header">
+            <h2>Email Subscribers</h2>
+        </div>
+
+        <p class="subscriber-count">{{ subscribers|length }} subscriber{% if subscribers|length != 1 %}s{% endif %}</p>
+        {% if subscribers %}
+        <table class="admin-table">
+            <thead>
+                <tr>
+                    <th>Email</th>
+                    <th>Name</th>
+                    <th>Progress</th>
+                    <th>Notify New</th>
+                    <th>Subscribed</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for sub in subscribers %}
+                <tr>
+                    <td>{{ sub.email }}</td>
+                    <td>{{ sub.name or '-' }}</td>
+                    <td>
+                        {% if sub.user_identifier %}
+                        <span class="badge badge-success" title="{{ sub.user_identifier[:8] }}...">Linked</span>
+                        {% else %}
+                        <span class="badge badge-muted">Not linked</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if sub.receive_new_threads %}
+                        <span class="badge badge-success">Yes</span>
+                        {% else %}
+                        <span class="badge badge-muted">No</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ sub.subscribed_at.strftime('%Y-%m-%d') if sub.subscribed_at else '-' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p class="empty-state">No email subscribers yet.</p>
+        {% endif %}
+    </div>
+</div>
+
+<style>
+.admin-page {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem 1rem;
+}
+
+.admin-page h1 {
+    margin-bottom: 0.5rem;
+}
+
+.admin-section {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.section-header h2 {
+    margin: 0;
+}
+
+.admin-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.admin-table th,
+.admin-table td {
+    padding: 0.75rem;
+    text-align: left;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.admin-table th {
+    background: #f5f5f5;
+    font-weight: 600;
+}
+
+.admin-table td.actions {
+    white-space: nowrap;
+}
+
+.text-muted {
+    color: #999;
+}
+
+.badge {
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    font-weight: 500;
+}
+
+.badge-success {
+    background: #d4edda;
+    color: #155724;
+}
+
+.badge-warning {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.badge-muted {
+    background: #e0e0e0;
+    color: #666;
+}
+
+.btn {
+    display: inline-block;
+    padding: 0.5rem 1rem;
+    border: none;
+    border-radius: 4px;
+    font-weight: 500;
+    cursor: pointer;
+    text-decoration: none;
+    font-size: 0.9rem;
+}
+
+.btn-small {
+    padding: 0.35rem 0.7rem;
+    font-size: 0.85rem;
+}
+
+.btn-primary {
+    background: #8B4513;
+    color: white;
+}
+
+.btn-primary:hover {
+    background: #A0522D;
+}
+
+.btn-secondary {
+    background: #f0f0f0;
+    color: #333;
+}
+
+.btn-secondary:hover {
+    background: #e0e0e0;
+}
+
+.btn-danger {
+    background: #dc3545;
+    color: white;
+}
+
+.btn-danger:hover {
+    background: #c82333;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 2rem;
+    color: #666;
+}
+
+.subscriber-count {
+    color: #666;
+    margin-bottom: 1rem;
+}
+
+/* Import section styles */
+.import-row {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.file-input-wrapper {
+    position: relative;
+    flex: 1;
+    min-width: 200px;
+}
+
+.file-input-wrapper input[type="file"] {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    cursor: pointer;
+}
+
+.file-label {
+    display: block;
+    padding: 0.75rem 1rem;
+    background: #f5f5f5;
+    border: 2px dashed #ccc;
+    border-radius: 4px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.file-label:hover {
+    border-color: #8B4513;
+    background: #faf5f0;
+}
+
+.file-label.has-file {
+    border-color: #8B4513;
+    border-style: solid;
+    background: #f5ebe0;
+}
+
+.import-options {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+    font-size: 0.9rem;
+}
+
+.import-result {
+    margin-top: 1rem;
+    padding: 1rem;
+    border-radius: 4px;
+}
+
+.import-result.success {
+    background: #d4edda;
+    color: #155724;
+}
+
+.import-result.error {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+.json-format-help {
+    margin-top: 1rem;
+    font-size: 0.9rem;
+}
+
+.json-format-help summary {
+    cursor: pointer;
+    color: #666;
+}
+
+.json-format-help pre {
+    background: #f5f5f5;
+    padding: 1rem;
+    border-radius: 4px;
+    overflow-x: auto;
+    margin-top: 0.5rem;
+}
+
+.json-format-help code {
+    font-size: 0.85rem;
+}
+
+@media (max-width: 768px) {
+    .admin-table {
+        display: block;
+        overflow-x: auto;
+    }
+
+    .section-header {
+        flex-direction: column;
+        gap: 1rem;
+        align-items: flex-start;
+    }
+}
+</style>
+
+<script>
+function deleteThread(threadId, title) {
+    if (!confirm(`Are you sure you want to delete "${title}"?\n\nThis will also delete all devotionals in this thread.`)) {
+        return;
+    }
+
+    fetch(`/admin/devotionals/threads/${threadId}`, {
+        method: 'DELETE'
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert(data.error || 'Delete failed');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('An error occurred');
+    });
+}
+
+// File input display
+document.getElementById('json_file').addEventListener('change', function(e) {
+    const label = this.nextElementSibling;
+    const textSpan = label.querySelector('.file-text');
+    if (this.files.length > 0) {
+        textSpan.textContent = this.files[0].name;
+        label.classList.add('has-file');
+    } else {
+        textSpan.textContent = 'Choose JSON file...';
+        label.classList.remove('has-file');
+    }
+});
+
+// Import form submission
+document.getElementById('import-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+
+    const formData = new FormData(this);
+    const resultDiv = document.getElementById('import-result');
+    const submitBtn = this.querySelector('button[type="submit"]');
+
+    // Disable button and show loading
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Importing...';
+    resultDiv.style.display = 'none';
+
+    fetch('/admin/devotionals/import', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        resultDiv.style.display = 'block';
+
+        if (data.success) {
+            resultDiv.className = 'import-result success';
+            resultDiv.innerHTML = `
+                <strong>Success!</strong> ${data.message}<br>
+                <a href="/devotionals/${data.identifier}" target="_blank">View Thread</a> |
+                <a href="/admin/devotionals/threads/${data.thread_id}/edit">Edit Thread</a>
+            `;
+            // Reset form
+            document.getElementById('import-form').reset();
+            document.querySelector('.file-text').textContent = 'Choose JSON file...';
+            document.querySelector('.file-label').classList.remove('has-file');
+            // Reload page after 2 seconds to show new thread
+            setTimeout(() => location.reload(), 2000);
+        } else {
+            resultDiv.className = 'import-result error';
+            resultDiv.innerHTML = `<strong>Error:</strong> ${data.error}`;
+        }
+    })
+    .catch(error => {
+        resultDiv.style.display = 'block';
+        resultDiv.className = 'import-result error';
+        resultDiv.innerHTML = `<strong>Error:</strong> ${error.message}`;
+    })
+    .finally(() => {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Import';
+    });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Pull The Thread{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=20251212c">
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <header class="devotional-header">
+        <nav class="navbar devotional-navbar">
+            <div class="container">
+                <h1 class="logo">
+                    <a href="{{ url_for('devotionals_index') }}">Pull The Thread</a>
+                </h1>
+                <ul class="nav-links">
+                    <li><a href="{{ url_for('index') }}">HastingTX Music</a></li>
+                    {% if is_admin_ip %}
+                    <li><a href="{{ url_for('admin_devotionals') }}" class="admin-link">Admin</a></li>
+                    {% endif %}
+                </ul>
+            </div>
+        </nav>
+    </header>
+
+    <main class="container">
+        {% block content %}{% endblock %}
+    </main>
+
+    <div class="save-progress-section">
+        <div class="container">
+            <div class="save-progress-box">
+                <div class="save-progress-header" onclick="toggleSaveProgress()">
+                    <span class="save-icon">&#128274;</span>
+                    <span>Save Your Progress</span>
+                    <span class="toggle-arrow" id="save-toggle-arrow">&#9660;</span>
+                </div>
+                <div class="save-progress-content" id="save-progress-content" style="display: none;">
+                    <p>Enter your email to get a magic link. Use it to access your progress from any device.</p>
+                    <form id="save-progress-form" class="save-progress-form">
+                        <input type="email" id="save-progress-email" name="email" placeholder="your@email.com" required>
+                        <button type="submit" class="btn btn-save">Send Link</button>
+                    </form>
+                    <div id="save-progress-message" class="save-progress-message" style="display: none;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2025 HastingTX. Daily devotionals to strengthen your faith.</p>
+        </div>
+    </footer>
+
+    <script>
+    function toggleSaveProgress() {
+        const content = document.getElementById('save-progress-content');
+        const arrow = document.getElementById('save-toggle-arrow');
+        if (content.style.display === 'none') {
+            content.style.display = 'block';
+            arrow.innerHTML = '&#9650;';
+        } else {
+            content.style.display = 'none';
+            arrow.innerHTML = '&#9660;';
+        }
+    }
+
+    document.getElementById('save-progress-form').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const email = document.getElementById('save-progress-email').value.trim();
+        const btn = this.querySelector('button');
+        const msgDiv = document.getElementById('save-progress-message');
+
+        btn.disabled = true;
+        btn.textContent = 'Sending...';
+        msgDiv.style.display = 'none';
+
+        fetch('/devotionals/save-progress', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: email })
+        })
+        .then(r => r.json())
+        .then(data => {
+            msgDiv.style.display = 'block';
+            if (data.success) {
+                msgDiv.className = 'save-progress-message success';
+                msgDiv.textContent = data.message;
+                document.getElementById('save-progress-email').value = '';
+            } else {
+                msgDiv.className = 'save-progress-message error';
+                msgDiv.textContent = data.error || 'Something went wrong';
+            }
+        })
+        .catch(err => {
+            msgDiv.style.display = 'block';
+            msgDiv.className = 'save-progress-message error';
+            msgDiv.textContent = 'Network error. Please try again.';
+        })
+        .finally(() => {
+            btn.disabled = false;
+            btn.textContent = 'Send Link';
+        });
+    });
+    </script>
+
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

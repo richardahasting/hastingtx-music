@@ -1,0 +1,381 @@
+{% extends "base_devotional.html" %}
+
+{% block title %}Day {{ devotional.day_number }}: {{ devotional.title }} - {{ thread.title }}{% endblock %}
+
+{% block content %}
+<div class="day-page">
+    <div class="day-header">
+        <div class="day-breadcrumb">
+            <a href="{{ url_for('devotionals_index') }}">Devotionals</a> &raquo;
+            <a href="{{ url_for('devotional_thread', identifier=thread.identifier) }}">{{ thread.title }}</a>
+        </div>
+
+        <div class="day-indicator">
+            <span class="day-badge">Day {{ devotional.day_number }} of {{ thread.total_days }}</span>
+        </div>
+
+        <h1>{{ devotional.title }}</h1>
+    </div>
+
+    {% if devotional.audio_filename %}
+    <div class="audio-section audio-top">
+        <audio controls class="audio-player">
+            <source src="{{ url_for('static', filename='uploads/devotionals/audio/' + devotional.audio_filename) }}?v={{ devotional.audio_duration or '' }}" type="audio/mpeg">
+            Your browser does not support the audio element.
+        </audio>
+        {% if devotional.audio_duration %}
+        <span class="audio-duration">{{ (devotional.audio_duration // 60) }}:{{ '%02d' % (devotional.audio_duration % 60) }}</span>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    {% if devotional.scripture_reference %}
+    <div class="scripture-section">
+        <div class="scripture-reference">{{ devotional.scripture_reference }}</div>
+        {% if devotional.scripture_text %}
+        <blockquote class="scripture-text">{{ devotional.scripture_text }}</blockquote>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <div class="devotional-content">
+        {{ devotional.content|safe }}
+    </div>
+
+    {% if devotional.reflection_questions %}
+    <div class="reflection-section">
+        <h3>Reflection Questions</h3>
+        <div class="reflection-content">{{ devotional.reflection_questions|safe }}</div>
+    </div>
+    {% endif %}
+
+    {% if devotional.prayer %}
+    <div class="prayer-section">
+        <h3>Prayer</h3>
+        <div class="prayer-content">{{ devotional.prayer|safe }}</div>
+    </div>
+    {% endif %}
+
+    <div class="day-actions">
+        {% if not is_day_complete %}
+        <button id="complete-btn" class="btn btn-primary btn-large">I've Finished Today's Devotional</button>
+        {% else %}
+        <div class="completed-badge">
+            <span class="checkmark">&#10003;</span> Day {{ devotional.day_number }} Completed
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="day-navigation">
+        {% if prev_day %}
+        <a href="{{ url_for('devotional_day', identifier=thread.identifier, day_number=prev_day) }}" class="nav-btn nav-prev">
+            &larr; Day {{ prev_day }}
+        </a>
+        {% else %}
+        <span class="nav-btn nav-prev disabled"></span>
+        {% endif %}
+
+        <a href="{{ url_for('devotional_thread', identifier=thread.identifier) }}" class="nav-btn nav-overview">
+            Overview
+        </a>
+
+        {% if next_accessible %}
+        <a href="{{ url_for('devotional_day', identifier=thread.identifier, day_number=next_day) }}" class="nav-btn nav-next">
+            Day {{ next_day }} &rarr;
+        </a>
+        {% elif next_day %}
+        <span class="nav-btn nav-next disabled" title="Complete today's devotional to unlock">
+            Day {{ next_day }} &#128274;
+        </span>
+        {% else %}
+        <span class="nav-btn nav-next disabled"></span>
+        {% endif %}
+    </div>
+</div>
+
+<style>
+.day-page {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 2rem 1rem;
+}
+
+.day-header {
+    text-align: center;
+    margin-bottom: 2rem;
+}
+
+.day-breadcrumb {
+    font-size: 0.9rem;
+    color: #666;
+    margin-bottom: 1rem;
+}
+
+.day-breadcrumb a {
+    color: #8B4513;
+}
+
+.day-indicator {
+    margin-bottom: 1rem;
+}
+
+.day-badge {
+    display: inline-block;
+    background: #8B4513;
+    color: white;
+    padding: 0.4rem 1rem;
+    border-radius: 20px;
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+.day-header h1 {
+    font-size: 2rem;
+    color: #333;
+    margin: 0;
+}
+
+.scripture-section {
+    background: #f5f5dc;
+    padding: 1.5rem 2rem;
+    border-left: 4px solid #8B4513;
+    margin-bottom: 2rem;
+    border-radius: 0 8px 8px 0;
+}
+
+.scripture-reference {
+    font-weight: 600;
+    color: #8B4513;
+    margin-bottom: 0.5rem;
+}
+
+.scripture-text {
+    font-style: italic;
+    font-size: 1.1rem;
+    line-height: 1.6;
+    margin: 0;
+    color: #333;
+}
+
+.devotional-content {
+    font-size: 1.1rem;
+    line-height: 1.8;
+    color: #333;
+    margin-bottom: 2rem;
+}
+
+.devotional-content p {
+    margin-bottom: 1.5rem;
+}
+
+.reflection-section {
+    background: #f0f8ff;
+    padding: 1.5rem;
+    border-radius: 8px;
+    margin-bottom: 2rem;
+}
+
+.reflection-section h3 {
+    color: #2c5aa0;
+    margin: 0 0 1rem;
+}
+
+.reflection-content {
+    line-height: 1.6;
+}
+
+.prayer-section {
+    background: #fff8dc;
+    padding: 1.5rem;
+    border-radius: 8px;
+    margin-bottom: 2rem;
+    font-style: italic;
+}
+
+.prayer-section h3 {
+    color: #8B4513;
+    margin: 0 0 1rem;
+    font-style: normal;
+}
+
+.prayer-content {
+    line-height: 1.6;
+}
+
+.audio-section {
+    background: #f9f9f9;
+    padding: 1.5rem;
+    border-radius: 8px;
+    margin-bottom: 2rem;
+    text-align: center;
+}
+
+.audio-section.audio-top {
+    background: linear-gradient(135deg, #8B4513 0%, #A0522D 100%);
+    padding: 1rem 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.audio-top .audio-player {
+    max-width: 400px;
+}
+
+.audio-top .audio-duration {
+    color: rgba(255,255,255,0.9);
+    margin: 0;
+}
+
+.audio-section h3 {
+    margin: 0 0 1rem;
+    color: #333;
+}
+
+.audio-player {
+    width: 100%;
+    max-width: 500px;
+}
+
+.audio-duration {
+    display: block;
+    margin-top: 0.5rem;
+    color: #666;
+    font-size: 0.9rem;
+}
+
+.day-actions {
+    text-align: center;
+    margin: 2rem 0;
+}
+
+.btn {
+    display: inline-block;
+    padding: 0.75rem 1.5rem;
+    border: none;
+    border-radius: 6px;
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: none;
+}
+
+.btn-primary {
+    background: #8B4513;
+    color: white;
+}
+
+.btn-primary:hover {
+    background: #A0522D;
+}
+
+.btn-large {
+    padding: 1rem 2rem;
+    font-size: 1.1rem;
+}
+
+.completed-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: #d4edda;
+    color: #155724;
+    padding: 1rem 1.5rem;
+    border-radius: 8px;
+    font-weight: 600;
+}
+
+.completed-badge .checkmark {
+    font-size: 1.5rem;
+}
+
+.day-navigation {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    margin-top: 3rem;
+    padding-top: 2rem;
+    border-top: 1px solid #e0e0e0;
+}
+
+.nav-btn {
+    padding: 0.75rem 1.25rem;
+    background: #f0f0f0;
+    color: #333;
+    text-decoration: none;
+    border-radius: 6px;
+    font-weight: 500;
+}
+
+.nav-btn:hover:not(.disabled) {
+    background: #e0e0e0;
+}
+
+.nav-btn.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    color: #999;
+}
+
+.nav-overview {
+    background: #8B4513;
+    color: white;
+}
+
+.nav-overview:hover {
+    background: #A0522D;
+}
+
+@media (max-width: 600px) {
+    .day-header h1 {
+        font-size: 1.5rem;
+    }
+
+    .day-navigation {
+        flex-direction: column;
+    }
+
+    .nav-btn {
+        width: 100%;
+        text-align: center;
+    }
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const completeBtn = document.getElementById('complete-btn');
+    if (completeBtn) {
+        completeBtn.addEventListener('click', function() {
+            this.disabled = true;
+            this.textContent = 'Marking complete...';
+
+            fetch('{{ url_for("complete_devotional_day", identifier=thread.identifier, day_number=devotional.day_number) }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    window.location.href = data.redirect;
+                } else {
+                    alert(data.error || 'Failed to mark as complete');
+                    this.disabled = false;
+                    this.textContent = "I've Finished Today's Devotional";
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred');
+                this.disabled = false;
+                this.textContent = "I've Finished Today's Devotional";
+            });
+        });
+    }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,387 @@
+{% extends "base_devotional.html" %}
+
+{% block title %}Pull The Thread - Devotionals{% endblock %}
+
+{% block content %}
+<div class="devotionals-page">
+    <div class="devotionals-header">
+        <h1>Pull The Thread</h1>
+        <p class="devotionals-tagline">Daily devotional series to strengthen your faith</p>
+    </div>
+
+    <div class="search-controls">
+        <form method="GET" class="search-form">
+            <input type="text" name="q" value="{{ search_query or '' }}" placeholder="Search devotionals..." class="search-input">
+            <button type="submit" class="btn btn-search">Search</button>
+            {% if search_query %}
+            <a href="{{ url_for('devotionals_index') }}" class="btn btn-clear">Clear</a>
+            {% endif %}
+        </form>
+        <div class="sort-controls">
+            <a href="{{ url_for('devotionals_index', q=search_query, reverse='1' if not reverse_sort else '') }}"
+               class="sort-toggle {% if reverse_sort %}active{% endif %}">
+                {% if reverse_sort %}
+                &#9650; Newest First
+                {% else %}
+                &#9660; Reading Order
+                {% endif %}
+            </a>
+        </div>
+    </div>
+
+    {% if search_query %}
+    <p class="search-results-info">
+        Found {{ threads|length }} result{% if threads|length != 1 %}s{% endif %} for "{{ search_query }}"
+    </p>
+    {% endif %}
+
+    {% if threads %}
+    {% set current_series = namespace(value='__none__') %}
+    <div class="threads-container">
+        {% for thread in threads %}
+        {% if thread.series != current_series.value %}
+            {% if current_series.value != '__none__' %}
+            </div><!-- end threads-grid -->
+            {% endif %}
+            {% if thread.series %}
+            <h2 class="series-header">{{ thread.series }} Series</h2>
+            {% elif current_series.value != '__none__' %}
+            <h2 class="series-header">More Devotionals</h2>
+            {% endif %}
+            <div class="threads-grid">
+            {% set current_series.value = thread.series %}
+        {% endif %}
+        <div class="thread-card {% if thread.is_complete %}completed{% endif %}">
+            {% if thread.cover_image %}
+            <div class="thread-cover">
+                <img src="{{ url_for('static', filename='uploads/devotionals/covers/' + thread.cover_image) }}" alt="{{ thread.title }}">
+            </div>
+            {% else %}
+            <div class="thread-cover thread-cover-placeholder">
+                <span class="thread-icon">&#128214;</span>
+            </div>
+            {% endif %}
+
+            <div class="thread-info">
+                <h2 class="thread-title">{{ thread.title }}</h2>
+
+                {% if thread.author %}
+                <p class="thread-author">by {{ thread.author }}</p>
+                {% endif %}
+
+                <p class="thread-days">{{ thread.total_days }} Day{% if thread.total_days != 1 %}s{% endif %}</p>
+
+                {% if thread.description %}
+                <p class="thread-description">{{ thread.description|truncate(150) }}</p>
+                {% endif %}
+
+                {% if thread.user_progress %}
+                <div class="thread-progress">
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: {{ (thread.user_progress.completed_days|length / thread.total_days * 100)|int }}%"></div>
+                    </div>
+                    <span class="progress-text">
+                        {% if thread.is_complete %}
+                        Completed!
+                        {% else %}
+                        Day {{ thread.user_progress.current_day }} of {{ thread.total_days }}
+                        {% endif %}
+                    </span>
+                </div>
+                {% endif %}
+
+                <div class="thread-actions">
+                    {% if thread.is_complete %}
+                    <a href="{{ url_for('devotional_thread', identifier=thread.identifier) }}" class="btn btn-secondary">Review</a>
+                    {% elif thread.user_progress %}
+                    <a href="{{ url_for('devotional_day', identifier=thread.identifier, day_number=thread.user_progress.current_day) }}" class="btn btn-primary">Continue</a>
+                    {% else %}
+                    <a href="{{ url_for('devotional_thread', identifier=thread.identifier) }}" class="btn btn-primary">Pull The Thread</a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+        </div><!-- end final threads-grid -->
+    </div><!-- end threads-container -->
+    {% else %}
+    <div class="empty-state">
+        <p>No devotional series available yet.</p>
+        <p>Check back soon!</p>
+    </div>
+    {% endif %}
+</div>
+
+<style>
+.devotionals-page {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem 1rem;
+}
+
+.devotionals-header {
+    text-align: center;
+    margin-bottom: 3rem;
+}
+
+.devotionals-header h1 {
+    font-size: 2.5rem;
+    color: #8B4513;
+    margin-bottom: 0.5rem;
+}
+
+.devotionals-tagline {
+    color: #666;
+    font-size: 1.2rem;
+}
+
+.search-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.search-form {
+    display: flex;
+    gap: 0.5rem;
+    flex: 1;
+    max-width: 500px;
+}
+
+.search-input {
+    flex: 1;
+    padding: 0.75rem 1rem;
+    border: 2px solid #e0e0e0;
+    border-radius: 6px;
+    font-size: 1rem;
+    transition: border-color 0.2s;
+}
+
+.search-input:focus {
+    outline: none;
+    border-color: #8B4513;
+}
+
+.btn-search {
+    padding: 0.75rem 1.5rem;
+    background: #8B4513;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 600;
+}
+
+.btn-search:hover {
+    background: #A0522D;
+}
+
+.btn-clear {
+    padding: 0.75rem 1rem;
+    background: #f0f0f0;
+    color: #666;
+    text-decoration: none;
+    border-radius: 6px;
+}
+
+.btn-clear:hover {
+    background: #e0e0e0;
+}
+
+.sort-controls {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.sort-toggle {
+    padding: 0.5rem 1rem;
+    background: #f5f5f5;
+    color: #666;
+    text-decoration: none;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    transition: all 0.2s;
+}
+
+.sort-toggle:hover {
+    background: #e0e0e0;
+}
+
+.sort-toggle.active {
+    background: #8B4513;
+    color: white;
+}
+
+.search-results-info {
+    color: #666;
+    margin-bottom: 1rem;
+    font-style: italic;
+}
+
+.threads-container {
+    margin-bottom: 2rem;
+}
+
+.series-header {
+    color: #8B4513;
+    font-size: 1.5rem;
+    margin: 2rem 0 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid #e0e0e0;
+}
+
+.series-header:first-child {
+    margin-top: 0;
+}
+
+.threads-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 2rem;
+}
+
+.thread-card {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    overflow: hidden;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.thread-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+}
+
+.thread-card.completed {
+    border: 2px solid #28a745;
+}
+
+.thread-cover {
+    height: 180px;
+    overflow: hidden;
+}
+
+.thread-cover img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.thread-cover-placeholder {
+    background: linear-gradient(135deg, #8B4513 0%, #A0522D 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.thread-icon {
+    font-size: 4rem;
+    opacity: 0.5;
+}
+
+.thread-info {
+    padding: 1.5rem;
+}
+
+.thread-title {
+    font-size: 1.4rem;
+    margin: 0 0 0.5rem;
+    color: #333;
+}
+
+.thread-author {
+    color: #666;
+    font-style: italic;
+    margin: 0 0 0.5rem;
+}
+
+.thread-days {
+    color: #8B4513;
+    font-weight: 600;
+    margin: 0 0 1rem;
+}
+
+.thread-description {
+    color: #555;
+    font-size: 0.95rem;
+    line-height: 1.5;
+    margin: 0 0 1rem;
+}
+
+.thread-progress {
+    margin-bottom: 1rem;
+}
+
+.progress-bar {
+    height: 8px;
+    background: #e0e0e0;
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 0.5rem;
+}
+
+.progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #8B4513, #A0522D);
+    border-radius: 4px;
+    transition: width 0.3s;
+}
+
+.progress-text {
+    font-size: 0.85rem;
+    color: #666;
+}
+
+.thread-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.thread-actions .btn {
+    flex: 1;
+    text-align: center;
+    padding: 0.75rem 1rem;
+    text-decoration: none;
+    border-radius: 6px;
+    font-weight: 600;
+}
+
+.btn-primary {
+    background: #8B4513;
+    color: white;
+}
+
+.btn-primary:hover {
+    background: #A0522D;
+}
+
+.btn-secondary {
+    background: #f0f0f0;
+    color: #333;
+}
+
+.btn-secondary:hover {
+    background: #e0e0e0;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 4rem 2rem;
+    color: #666;
+}
+
+@media (max-width: 600px) {
+    .devotionals-header h1 {
+        font-size: 2rem;
+    }
+
+    .threads-grid {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
+{% endblock %}

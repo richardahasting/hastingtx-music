@@ -1,0 +1,294 @@
+{% extends "base_devotional.html" %}
+
+{% block title %}Congratulations! - {{ thread.title }}{% endblock %}
+
+{% block content %}
+<div class="complete-page">
+    <div class="celebration">
+        <div class="celebration-icon">&#127881;</div>
+        <h1>Congratulations!</h1>
+        <p class="completion-message">
+            You've completed <strong>{{ thread.title }}</strong>!
+        </p>
+    </div>
+
+    <div class="completion-card">
+        <div class="card-content">
+            <h2>Your Journey</h2>
+            <p>Over {{ thread.total_days }} day{% if thread.total_days != 1 %}s{% endif %}, you've invested time in growing your faith and deepening your relationship with God.</p>
+
+            <div class="stats">
+                <div class="stat">
+                    <span class="stat-number">{{ thread.total_days }}</span>
+                    <span class="stat-label">Days Completed</span>
+                </div>
+            </div>
+
+            <div class="actions">
+                <a href="{{ url_for('devotional_day', identifier=thread.identifier, day_number=1) }}" class="btn btn-secondary">Review from Day 1</a>
+                <a href="{{ url_for('devotional_thread', identifier=thread.identifier) }}" class="btn btn-secondary">View Thread Overview</a>
+            </div>
+        </div>
+    </div>
+
+    {% if other_threads %}
+    <div class="next-journey">
+        <h2>Continue Your Journey</h2>
+        <p>Ready for another devotional series? Here are more to explore:</p>
+
+        <div class="other-threads">
+            {% for t in other_threads %}
+            <div class="other-thread-card">
+                <h3>{{ t.title }}</h3>
+                {% if t.author %}
+                <p class="thread-author">by {{ t.author }}</p>
+                {% endif %}
+                <p class="thread-days">{{ t.total_days }} Day{% if t.total_days != 1 %}s{% endif %}</p>
+                {% if t.description %}
+                <p class="thread-desc">{{ t.description|truncate(100) }}</p>
+                {% endif %}
+                <a href="{{ url_for('devotional_thread', identifier=t.identifier) }}" class="btn btn-primary">Start This Series</a>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="share-section">
+        <h2>Share Your Achievement</h2>
+        <p>Let others know about your devotional journey!</p>
+        <div class="share-buttons">
+            <a href="mailto:?subject=I completed {{ thread.title }}&body=I just finished the {{ thread.total_days }}-day devotional series '{{ thread.title }}' on hastingtx.org. Check it out: {{ url_for('devotional_thread', identifier=thread.identifier, _external=True) }}" class="share-btn email">
+                Share via Email
+            </a>
+        </div>
+    </div>
+
+    <p class="back-link"><a href="{{ url_for('devotionals_index') }}">Back to All Devotionals</a></p>
+</div>
+
+<style>
+.complete-page {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 2rem 1rem;
+}
+
+.celebration {
+    text-align: center;
+    padding: 3rem 2rem;
+    background: linear-gradient(135deg, #fff8dc 0%, #fffacd 100%);
+    border-radius: 16px;
+    margin-bottom: 2rem;
+}
+
+.celebration-icon {
+    font-size: 4rem;
+    margin-bottom: 1rem;
+}
+
+.celebration h1 {
+    font-size: 2.5rem;
+    color: #8B4513;
+    margin: 0 0 1rem;
+}
+
+.completion-message {
+    font-size: 1.2rem;
+    color: #333;
+}
+
+.completion-card {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    overflow: hidden;
+    margin-bottom: 2rem;
+}
+
+.card-content {
+    padding: 2rem;
+    text-align: center;
+}
+
+.card-content h2 {
+    color: #333;
+    margin: 0 0 1rem;
+}
+
+.stats {
+    display: flex;
+    justify-content: center;
+    gap: 2rem;
+    margin: 2rem 0;
+}
+
+.stat {
+    text-align: center;
+}
+
+.stat-number {
+    display: block;
+    font-size: 3rem;
+    font-weight: bold;
+    color: #8B4513;
+}
+
+.stat-label {
+    color: #666;
+    font-size: 0.9rem;
+}
+
+.actions {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.next-journey {
+    margin-bottom: 2rem;
+}
+
+.next-journey h2 {
+    text-align: center;
+    color: #333;
+    margin: 0 0 0.5rem;
+}
+
+.next-journey > p {
+    text-align: center;
+    color: #666;
+    margin-bottom: 1.5rem;
+}
+
+.other-threads {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 1.5rem;
+}
+
+.other-thread-card {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.other-thread-card h3 {
+    margin: 0 0 0.5rem;
+    color: #333;
+}
+
+.other-thread-card .thread-author {
+    color: #666;
+    font-style: italic;
+    margin: 0 0 0.5rem;
+    font-size: 0.9rem;
+}
+
+.other-thread-card .thread-days {
+    color: #8B4513;
+    font-weight: 600;
+    margin: 0 0 0.5rem;
+}
+
+.other-thread-card .thread-desc {
+    color: #555;
+    font-size: 0.9rem;
+    margin: 0 0 1rem;
+}
+
+.share-section {
+    text-align: center;
+    padding: 2rem;
+    background: #f0f8ff;
+    border-radius: 12px;
+    margin-bottom: 2rem;
+}
+
+.share-section h2 {
+    margin: 0 0 0.5rem;
+    color: #333;
+}
+
+.share-section p {
+    color: #666;
+    margin-bottom: 1rem;
+}
+
+.share-buttons {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.share-btn {
+    padding: 0.75rem 1.5rem;
+    border-radius: 6px;
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.share-btn.email {
+    background: #2c5aa0;
+    color: white;
+}
+
+.share-btn.email:hover {
+    background: #1e4080;
+}
+
+.btn {
+    display: inline-block;
+    padding: 0.75rem 1.5rem;
+    border: none;
+    border-radius: 6px;
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: none;
+}
+
+.btn-primary {
+    background: #8B4513;
+    color: white;
+}
+
+.btn-primary:hover {
+    background: #A0522D;
+}
+
+.btn-secondary {
+    background: #f0f0f0;
+    color: #333;
+}
+
+.btn-secondary:hover {
+    background: #e0e0e0;
+}
+
+.back-link {
+    text-align: center;
+    margin-top: 2rem;
+}
+
+.back-link a {
+    color: #8B4513;
+}
+
+@media (max-width: 600px) {
+    .celebration h1 {
+        font-size: 2rem;
+    }
+
+    .actions {
+        flex-direction: column;
+    }
+
+    .actions .btn {
+        width: 100%;
+    }
+}
+</style>
+{% endblock %}

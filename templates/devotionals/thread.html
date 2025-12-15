@@ -1,0 +1,444 @@
+{% extends "base_devotional.html" %}
+
+{% block title %}{{ thread.title }} - Pull The Thread{% endblock %}
+
+{% block content %}
+<div class="thread-page">
+    <div class="thread-header">
+        {% if thread.cover_image %}
+        <div class="thread-cover-large">
+            <img src="{{ url_for('static', filename='uploads/devotionals/covers/' + thread.cover_image) }}" alt="{{ thread.title }}">
+        </div>
+        {% endif %}
+
+        <div class="thread-header-content">
+            <h1>{{ thread.title }}</h1>
+            {% if thread.author %}
+            <p class="thread-author">by {{ thread.author }}</p>
+            {% endif %}
+            <p class="thread-days-count">{{ thread.total_days }} Day Devotional Series</p>
+        </div>
+    </div>
+
+    {% if thread.description %}
+    <div class="thread-description-full">
+        <p>{{ thread.description }}</p>
+    </div>
+    {% endif %}
+
+    {% if progress %}
+    <div class="progress-section">
+        <h3>Your Progress</h3>
+        <div class="progress-bar-large">
+            <div class="progress-fill" style="width: {{ (progress.completed_days|length / thread.total_days * 100)|int }}%"></div>
+        </div>
+        <p class="progress-status">
+            {% if is_complete %}
+            You've completed this devotional series!
+            {% else %}
+            {{ progress.completed_days|length }} of {{ thread.total_days }} days completed
+            {% endif %}
+        </p>
+    </div>
+    {% endif %}
+
+    <div class="days-list">
+        <h3>Devotional Days</h3>
+        {% for devotional in devotionals %}
+        <div class="day-item {% if progress and devotional.day_number in progress.completed_days %}completed{% endif %} {% if progress and devotional.day_number == progress.current_day %}current{% endif %}">
+            <div class="day-number">
+                {% if progress and devotional.day_number in progress.completed_days %}
+                <span class="checkmark">&#10003;</span>
+                {% else %}
+                Day {{ devotional.day_number }}
+                {% endif %}
+            </div>
+            <div class="day-info">
+                <h4>{{ devotional.title }}</h4>
+                {% if devotional.scripture_reference %}
+                <p class="day-scripture">{{ devotional.scripture_reference }}</p>
+                {% endif %}
+            </div>
+            <div class="day-action">
+                {% if progress and (devotional.day_number in progress.completed_days or devotional.day_number <= progress.current_day) %}
+                <a href="{{ url_for('devotional_day', identifier=thread.identifier, day_number=devotional.day_number) }}" class="btn btn-small">
+                    {% if devotional.day_number in progress.completed_days %}Review{% else %}Read{% endif %}
+                </a>
+                {% else %}
+                <span class="locked">&#128274;</span>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <div class="thread-actions-section">
+        {% if not progress %}
+        <div class="start-section">
+            <h3>Ready to Begin?</h3>
+            <p>Start this devotional journey and grow in your faith.</p>
+            <button id="start-btn" class="btn btn-primary btn-large">Pull The Thread</button>
+        </div>
+
+        <div class="email-option">
+            <h4>Or Receive by Email</h4>
+            <p>Get each devotional delivered to your inbox daily.</p>
+            <form id="email-form" class="email-form">
+                <input type="email" id="email" name="email" placeholder="Your email address" required>
+                <input type="text" id="name" name="name" placeholder="Your name (optional)">
+                <label class="checkbox-label">
+                    <input type="checkbox" name="receive_new" checked>
+                    Notify me of future devotional series
+                </label>
+                <button type="submit" class="btn btn-secondary">Subscribe</button>
+            </form>
+            <div id="email-message" class="message" style="display: none;"></div>
+        </div>
+        {% elif is_complete %}
+        <div class="complete-section">
+            <h3>Congratulations!</h3>
+            <p>You've completed this devotional series. Feel free to review any day.</p>
+            <a href="{{ url_for('devotional_day', identifier=thread.identifier, day_number=1) }}" class="btn btn-secondary">Start from Day 1</a>
+        </div>
+        {% else %}
+        <div class="continue-section">
+            <a href="{{ url_for('devotional_day', identifier=thread.identifier, day_number=progress.current_day) }}" class="btn btn-primary btn-large">Continue to Day {{ progress.current_day }}</a>
+        </div>
+        {% endif %}
+    </div>
+
+    <p class="back-link"><a href="{{ url_for('devotionals_index') }}">Back to All Devotionals</a></p>
+</div>
+
+<style>
+.thread-page {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 2rem 1rem;
+}
+
+.thread-header {
+    text-align: center;
+    margin-bottom: 2rem;
+}
+
+.thread-cover-large {
+    max-width: 400px;
+    margin: 0 auto 1.5rem;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+.thread-cover-large img {
+    width: 100%;
+    height: auto;
+}
+
+.thread-header-content h1 {
+    font-size: 2.2rem;
+    color: #333;
+    margin: 0 0 0.5rem;
+}
+
+.thread-author {
+    color: #666;
+    font-style: italic;
+    margin: 0 0 0.5rem;
+}
+
+.thread-days-count {
+    color: #8B4513;
+    font-weight: 600;
+}
+
+.thread-description-full {
+    background: #f9f9f9;
+    padding: 1.5rem;
+    border-radius: 8px;
+    margin-bottom: 2rem;
+    line-height: 1.6;
+}
+
+.progress-section {
+    background: white;
+    border: 1px solid #e0e0e0;
+    padding: 1.5rem;
+    border-radius: 8px;
+    margin-bottom: 2rem;
+}
+
+.progress-section h3 {
+    margin: 0 0 1rem;
+    color: #333;
+}
+
+.progress-bar-large {
+    height: 12px;
+    background: #e0e0e0;
+    border-radius: 6px;
+    overflow: hidden;
+    margin-bottom: 0.5rem;
+}
+
+.progress-bar-large .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #8B4513, #28a745);
+    border-radius: 6px;
+}
+
+.progress-status {
+    color: #666;
+    margin: 0;
+}
+
+.days-list {
+    margin-bottom: 2rem;
+}
+
+.days-list h3 {
+    margin: 0 0 1rem;
+    color: #333;
+}
+
+.day-item {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem;
+    background: white;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    margin-bottom: 0.5rem;
+}
+
+.day-item.completed {
+    background: #f0fff0;
+    border-color: #28a745;
+}
+
+.day-item.current {
+    border-color: #8B4513;
+    border-width: 2px;
+}
+
+.day-number {
+    width: 60px;
+    text-align: center;
+    font-weight: 600;
+    color: #8B4513;
+}
+
+.checkmark {
+    color: #28a745;
+    font-size: 1.5rem;
+}
+
+.day-info {
+    flex: 1;
+}
+
+.day-info h4 {
+    margin: 0 0 0.25rem;
+    color: #333;
+}
+
+.day-scripture {
+    color: #666;
+    font-size: 0.9rem;
+    margin: 0;
+}
+
+.day-action .btn-small {
+    padding: 0.4rem 0.8rem;
+    font-size: 0.85rem;
+}
+
+.locked {
+    color: #999;
+    font-size: 1.2rem;
+}
+
+.thread-actions-section {
+    margin-top: 2rem;
+}
+
+.start-section, .complete-section, .continue-section {
+    text-align: center;
+    padding: 2rem;
+    background: #fff8dc;
+    border-radius: 12px;
+    margin-bottom: 2rem;
+}
+
+.start-section h3, .complete-section h3 {
+    color: #8B4513;
+    margin: 0 0 0.5rem;
+}
+
+.btn-large {
+    padding: 1rem 2rem;
+    font-size: 1.1rem;
+}
+
+.email-option {
+    text-align: center;
+    padding: 1.5rem;
+    background: #f0f8ff;
+    border-radius: 12px;
+}
+
+.email-option h4 {
+    margin: 0 0 0.5rem;
+    color: #2c5aa0;
+}
+
+.email-form {
+    max-width: 400px;
+    margin: 1rem auto 0;
+}
+
+.email-form input[type="email"],
+.email-form input[type="text"] {
+    width: 100%;
+    padding: 0.75rem;
+    margin-bottom: 0.75rem;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 1rem;
+}
+
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+    font-size: 0.9rem;
+    color: #666;
+}
+
+.message {
+    margin-top: 1rem;
+    padding: 0.75rem;
+    border-radius: 6px;
+}
+
+.message.success {
+    background: #d4edda;
+    color: #155724;
+}
+
+.message.error {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+.back-link {
+    text-align: center;
+    margin-top: 2rem;
+}
+
+.back-link a {
+    color: #8B4513;
+}
+
+.btn {
+    display: inline-block;
+    padding: 0.75rem 1.5rem;
+    border: none;
+    border-radius: 6px;
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: none;
+}
+
+.btn-primary {
+    background: #8B4513;
+    color: white;
+}
+
+.btn-primary:hover {
+    background: #A0522D;
+}
+
+.btn-secondary {
+    background: #2c5aa0;
+    color: white;
+}
+
+.btn-secondary:hover {
+    background: #1e4080;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const startBtn = document.getElementById('start-btn');
+    if (startBtn) {
+        startBtn.addEventListener('click', function() {
+            fetch('{{ url_for("start_devotional_thread", identifier=thread.identifier) }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    window.location.href = data.redirect;
+                } else {
+                    alert(data.error || 'Failed to start devotional');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred');
+            });
+        });
+    }
+
+    const emailForm = document.getElementById('email-form');
+    if (emailForm) {
+        emailForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            const email = document.getElementById('email').value;
+            const name = document.getElementById('name').value;
+            const receiveNew = this.querySelector('input[name="receive_new"]').checked;
+            const messageDiv = document.getElementById('email-message');
+
+            fetch('{{ url_for("devotional_subscribe") }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    email: email,
+                    name: name,
+                    thread_identifier: '{{ thread.identifier }}',
+                    receive_new_threads: receiveNew
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                messageDiv.style.display = 'block';
+                if (data.success) {
+                    messageDiv.className = 'message success';
+                    messageDiv.textContent = data.message;
+                    emailForm.reset();
+                } else {
+                    messageDiv.className = 'message error';
+                    messageDiv.textContent = data.error || 'Subscription failed';
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                messageDiv.style.display = 'block';
+                messageDiv.className = 'message error';
+                messageDiv.textContent = 'An error occurred';
+            });
+        });
+    }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,411 @@
+{% extends "base.html" %}
+
+{% block title %}{% if editing %}Edit Thread{% else %}Create Thread{% endif %} - Devotional Admin{% endblock %}
+
+{% block content %}
+<div class="create-page">
+    <h1>{% if editing %}Edit Devotional Thread{% else %}Create New Thread{% endif %}</h1>
+    <p><a href="{{ url_for('admin_devotionals') }}">Back to Devotional Admin</a></p>
+
+    <div class="form-container">
+        <form id="thread-form" enctype="multipart/form-data">
+            <div class="form-group">
+                <label for="title">Title *</label>
+                <input type="text" id="title" name="title" value="{{ thread.title if editing else '' }}" required>
+            </div>
+
+            <div class="form-group">
+                <label for="identifier">URL Identifier</label>
+                <input type="text" id="identifier" name="identifier" value="{{ thread.identifier if editing else '' }}" placeholder="auto-generated-from-title">
+                <small>Leave blank to auto-generate from title. Used in URL: /devotionals/<strong>identifier</strong></small>
+            </div>
+
+            <div class="form-group">
+                <label for="description">Description</label>
+                <textarea id="description" name="description" rows="4">{{ thread.description if editing else '' }}</textarea>
+            </div>
+
+            <div class="form-group">
+                <label for="author">Author</label>
+                <input type="text" id="author" name="author" value="{{ thread.author if editing else '' }}">
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="total_days">Total Days</label>
+                    <input type="number" id="total_days" name="total_days" min="1" value="{{ thread.total_days if editing else '5' }}">
+                    <small>Number of devotionals in this series</small>
+                </div>
+
+                <div class="form-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" name="is_published" {% if editing and thread.is_published %}checked{% endif %}>
+                        Published
+                    </label>
+                    <small>Only published threads are visible to users</small>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="cover_image">Cover Image</label>
+                {% if editing and thread.cover_image %}
+                <div class="current-cover">
+                    <img src="{{ url_for('static', filename='uploads/devotionals/covers/' + thread.cover_image) }}" alt="Current cover">
+                    <p>Current cover image</p>
+                </div>
+                {% endif %}
+                <input type="file" id="cover_image" name="cover_image" accept="image/*">
+                <small>Optional. Recommended size: 800x600 pixels</small>
+            </div>
+
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">
+                    {% if editing %}Save Changes{% else %}Create Thread{% endif %}
+                </button>
+                <a href="{{ url_for('admin_devotionals') }}" class="btn btn-secondary">Cancel</a>
+            </div>
+        </form>
+
+        <div id="form-message" class="message" style="display: none;"></div>
+    </div>
+
+    {% if editing and devotionals %}
+    <div class="devotionals-section">
+        <h2>Devotionals in This Thread</h2>
+        <a href="{{ url_for('create_devotional_day', thread_id=thread.id) }}" class="btn btn-primary">Add New Day</a>
+
+        <table class="devotionals-table">
+            <thead>
+                <tr>
+                    <th>Day</th>
+                    <th>Title</th>
+                    <th>Scripture</th>
+                    <th>Audio</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for d in devotionals %}
+                <tr>
+                    <td><strong>Day {{ d.day_number }}</strong></td>
+                    <td>{{ d.title }}</td>
+                    <td>{{ d.scripture_reference or '-' }}</td>
+                    <td>
+                        {% if d.audio_filename %}
+                        <span class="badge badge-success">Yes</span>
+                        {% else %}
+                        <button onclick="generateAudio({{ d.id }})" class="btn btn-small btn-secondary">Generate</button>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <a href="{{ url_for('admin_edit_devotional', devotional_id=d.id) }}" class="btn btn-small">Edit</a>
+                        <button onclick="deleteDevotional({{ d.id }}, {{ d.day_number }})" class="btn btn-small btn-danger">Delete</button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+</div>
+
+<style>
+.create-page {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 2rem 1rem;
+}
+
+.form-container {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    padding: 2rem;
+    margin-bottom: 2rem;
+}
+
+.form-group {
+    margin-bottom: 1.5rem;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+    color: #333;
+}
+
+.form-group input[type="text"],
+.form-group input[type="number"],
+.form-group textarea {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 1rem;
+}
+
+.form-group input:focus,
+.form-group textarea:focus {
+    outline: none;
+    border-color: #8B4513;
+}
+
+.form-group small {
+    display: block;
+    margin-top: 0.25rem;
+    color: #666;
+    font-size: 0.85rem;
+}
+
+.form-row {
+    display: flex;
+    gap: 2rem;
+}
+
+.form-row .form-group {
+    flex: 1;
+}
+
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+}
+
+.checkbox-label input {
+    width: auto;
+}
+
+.current-cover {
+    margin-bottom: 1rem;
+}
+
+.current-cover img {
+    max-width: 200px;
+    border-radius: 8px;
+}
+
+.current-cover p {
+    font-size: 0.9rem;
+    color: #666;
+    margin: 0.5rem 0 0;
+}
+
+.form-actions {
+    display: flex;
+    gap: 1rem;
+    margin-top: 2rem;
+}
+
+.btn {
+    display: inline-block;
+    padding: 0.75rem 1.5rem;
+    border: none;
+    border-radius: 6px;
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: none;
+}
+
+.btn-small {
+    padding: 0.35rem 0.7rem;
+    font-size: 0.85rem;
+}
+
+.btn-primary {
+    background: #8B4513;
+    color: white;
+}
+
+.btn-primary:hover {
+    background: #A0522D;
+}
+
+.btn-secondary {
+    background: #f0f0f0;
+    color: #333;
+}
+
+.btn-secondary:hover {
+    background: #e0e0e0;
+}
+
+.btn-danger {
+    background: #dc3545;
+    color: white;
+}
+
+.btn-danger:hover {
+    background: #c82333;
+}
+
+.message {
+    margin-top: 1rem;
+    padding: 1rem;
+    border-radius: 6px;
+}
+
+.message.success {
+    background: #d4edda;
+    color: #155724;
+}
+
+.message.error {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+.devotionals-section {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    padding: 2rem;
+}
+
+.devotionals-section h2 {
+    margin: 0 0 1rem;
+}
+
+.devotionals-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 1rem;
+}
+
+.devotionals-table th,
+.devotionals-table td {
+    padding: 0.75rem;
+    text-align: left;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.devotionals-table th {
+    background: #f5f5f5;
+}
+
+.badge {
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.8rem;
+}
+
+.badge-success {
+    background: #d4edda;
+    color: #155724;
+}
+
+@media (max-width: 600px) {
+    .form-row {
+        flex-direction: column;
+        gap: 0;
+    }
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('thread-form');
+    const messageDiv = document.getElementById('form-message');
+
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+
+        const formData = new FormData(form);
+        const submitBtn = form.querySelector('button[type="submit"]');
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Saving...';
+
+        {% if editing %}
+        const url = '{{ url_for("admin_edit_thread", thread_id=thread.id) }}';
+        {% else %}
+        const url = '{{ url_for("create_devotional_thread") }}';
+        {% endif %}
+
+        fetch(url, {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            messageDiv.style.display = 'block';
+            if (data.success) {
+                messageDiv.className = 'message success';
+                {% if editing %}
+                messageDiv.textContent = 'Thread updated successfully!';
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Save Changes';
+                {% else %}
+                messageDiv.textContent = 'Thread created! Redirecting...';
+                setTimeout(() => {
+                    window.location.href = data.url;
+                }, 1000);
+                {% endif %}
+            } else {
+                messageDiv.className = 'message error';
+                messageDiv.textContent = data.error || 'Save failed';
+                submitBtn.disabled = false;
+                submitBtn.textContent = '{% if editing %}Save Changes{% else %}Create Thread{% endif %}';
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            messageDiv.style.display = 'block';
+            messageDiv.className = 'message error';
+            messageDiv.textContent = 'An error occurred';
+            submitBtn.disabled = false;
+            submitBtn.textContent = '{% if editing %}Save Changes{% else %}Create Thread{% endif %}';
+        });
+    });
+});
+
+{% if editing %}
+function generateAudio(devotionalId) {
+    if (!confirm('Generate audio for this devotional?\n\nThis requires Google Cloud TTS credentials to be configured.')) {
+        return;
+    }
+
+    fetch(`/admin/devotionals/days/${devotionalId}/generate-audio`, {
+        method: 'POST'
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(`Audio generated!\nDuration: ${data.duration_formatted}`);
+            location.reload();
+        } else {
+            alert(data.error || 'Audio generation failed');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('An error occurred');
+    });
+}
+
+function deleteDevotional(devotionalId, dayNumber) {
+    if (!confirm(`Are you sure you want to delete Day ${dayNumber}?`)) {
+        return;
+    }
+
+    fetch(`/admin/devotionals/days/${devotionalId}`, {
+        method: 'DELETE'
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert(data.error || 'Delete failed');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('An error occurred');
+    });
+}
+{% endif %}
+</script>
+{% endblock %}

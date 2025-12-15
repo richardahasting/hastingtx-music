@@ -1339,5 +1339,722 @@ def api_gallery_sections():
     return jsonify([dict(s) for s in sections])
 
 
+# ============================================================================
+# DEVOTIONAL ROUTES - Pull The Thread Devotional Series
+# ============================================================================
+
+from devotional_models import (
+    DevotionalThread, Devotional, DevotionalProgress,
+    DevotionalSubscriber, DevotionalEnrollment
+)
+from devotional_utils import (
+    generate_devotional_audio, format_duration as format_audio_duration,
+    generate_identifier as generate_devotional_identifier,
+    process_cover_image, ensure_directories as ensure_devotional_directories
+)
+
+# Ensure directories exist
+ensure_devotional_directories()
+
+# Devotional directories
+DEVOTIONAL_AUDIO_DIR = os.path.join(config.UPLOAD_FOLDER, 'devotionals', 'audio')
+DEVOTIONAL_COVERS_DIR = os.path.join(config.UPLOAD_FOLDER, 'devotionals', 'covers')
+
+
+def get_user_identifier():
+    """Get unique user identifier from session or create one."""
+    from flask import session
+    if 'devotional_user_id' not in session:
+        import uuid
+        session['devotional_user_id'] = str(uuid.uuid4())
+    session.permanent = True  # Make session last 1 year
+    return session['devotional_user_id']
+
+
+# Public devotional routes
+@app.route('/devotionals')
+@app.route('/devotionals/')
+def devotionals_index():
+    """List all published devotional threads."""
+    # Get search and sort parameters
+    search_query = request.args.get('q', '').strip()
+    reverse_sort = request.args.get('reverse') == '1'
+
+    threads = DevotionalThread.get_all(
+        published_only=True,
+        search=search_query if search_query else None,
+        reverse=reverse_sort
+    )
+
+    # Add progress info for current user
+    user_id = get_user_identifier()
+    for thread in threads:
+        progress = DevotionalProgress.get(thread['id'], user_id)
+        if progress:
+            thread['user_progress'] = progress
+            thread['is_complete'] = DevotionalProgress.is_thread_complete(thread['id'], user_id)
+        else:
+            thread['user_progress'] = None
+            thread['is_complete'] = False
+
+    return render_template('devotionals/index.html',
+                         threads=threads,
+                         search_query=search_query,
+                         reverse_sort=reverse_sort)
+
+
+@app.route('/devotionals/<identifier>')
+def devotional_thread(identifier):
+    """Thread overview/start page."""
+    thread = DevotionalThread.get_by_identifier(identifier)
+    if not thread:
+        abort(404, description=f"Thread '{identifier}' not found")
+
+    if not thread['is_published']:
+        # Only admins can view unpublished
+        if not is_ip_allowed(request.remote_addr, config.ADMIN_IP_WHITELIST):
+            abort(404, description=f"Thread '{identifier}' not found")
+
+    # Get devotionals for this thread
+    devotionals = DevotionalThread.get_devotionals(thread['id'])
+
+    # Get user progress
+    user_id = get_user_identifier()
+    progress = DevotionalProgress.get(thread['id'], user_id)
+    is_complete = DevotionalProgress.is_thread_complete(thread['id'], user_id) if progress else False
+
+    return render_template('devotionals/thread.html',
+                         thread=thread,
+                         devotionals=devotionals,
+                         progress=progress,
+                         is_complete=is_complete)
+
+
+@app.route('/devotionals/<identifier>/day/<int:day_number>')
+def devotional_day(identifier, day_number):
+    """View a specific day's devotional."""
+    thread = DevotionalThread.get_by_identifier(identifier)
+    if not thread:
+        abort(404, description=f"Thread '{identifier}' not found")
+
+    if not thread['is_published']:
+        if not is_ip_allowed(request.remote_addr, config.ADMIN_IP_WHITELIST):
+            abort(404, description=f"Thread '{identifier}' not found")
+
+    # Get the devotional
+    devotional = Devotional.get_by_thread_and_day(thread['id'], day_number)
+    if not devotional:
+        abort(404, description=f"Day {day_number} not found")
+
+    # Check if user can access this day
+    user_id = get_user_identifier()
+    if day_number > 1:
+        if not DevotionalProgress.is_day_accessible(thread['id'], user_id, day_number):
+            # Redirect to their current day
+            progress = DevotionalProgress.get(thread['id'], user_id)
+            current_day = progress['current_day'] if progress else 1
+            return redirect(url_for('devotional_day', identifier=identifier, day_number=current_day))
+
+    # Get or create progress
+    progress = DevotionalProgress.get_or_create(thread['id'], user_id)
+
+    # Check if this day is completed
+    is_day_complete = day_number in (progress['completed_days'] or [])
+
+    # Get prev/next navigation
+    prev_day = day_number - 1 if day_number > 1 else None
+    next_day = day_number + 1 if day_number < thread['total_days'] else None
+
+    # Can only go to next if current is complete
+    next_accessible = next_day and is_day_complete
+
+    return render_template('devotionals/day.html',
+                         thread=thread,
+                         devotional=devotional,
+                         progress=progress,
+                         is_day_complete=is_day_complete,
+                         prev_day=prev_day,
+                         next_day=next_day,
+                         next_accessible=next_accessible)
+
+
+@app.route('/devotionals/<identifier>/start', methods=['POST'])
+def start_devotional_thread(identifier):
+    """Start a thread (create progress record)."""
+    thread = DevotionalThread.get_by_identifier(identifier)
+    if not thread:
+        return jsonify({'error': 'Thread not found'}), 404
+
+    user_id = get_user_identifier()
+    progress = DevotionalProgress.get_or_create(thread['id'], user_id)
+
+    return jsonify({
+        'success': True,
+        'redirect': url_for('devotional_day', identifier=identifier, day_number=1)
+    })
+
+
+@app.route('/devotionals/<identifier>/day/<int:day_number>/complete', methods=['POST'])
+def complete_devotional_day(identifier, day_number):
+    """Mark a day as complete."""
+    thread = DevotionalThread.get_by_identifier(identifier)
+    if not thread:
+        return jsonify({'error': 'Thread not found'}), 404
+
+    user_id = get_user_identifier()
+
+    # Verify user has started this thread
+    progress = DevotionalProgress.get(thread['id'], user_id)
+    if not progress:
+        return jsonify({'error': 'Thread not started'}), 400
+
+    # Verify this is the current day or already completed
+    if day_number not in progress['completed_days'] and day_number != progress['current_day']:
+        return jsonify({'error': 'Cannot complete this day yet'}), 400
+
+    # Mark complete
+    next_day = DevotionalProgress.mark_day_complete(thread['id'], user_id, day_number)
+
+    # Check if thread is now complete
+    is_thread_complete = DevotionalProgress.is_thread_complete(thread['id'], user_id)
+
+    if is_thread_complete:
+        redirect_url = url_for('devotional_complete', identifier=identifier)
+    elif next_day <= thread['total_days']:
+        redirect_url = url_for('devotional_day', identifier=identifier, day_number=next_day)
+    else:
+        redirect_url = url_for('devotional_complete', identifier=identifier)
+
+    return jsonify({
+        'success': True,
+        'next_day': next_day,
+        'is_thread_complete': is_thread_complete,
+        'redirect': redirect_url
+    })
+
+
+@app.route('/devotionals/<identifier>/complete')
+def devotional_complete(identifier):
+    """Thread completion page."""
+    thread = DevotionalThread.get_by_identifier(identifier)
+    if not thread:
+        abort(404, description=f"Thread '{identifier}' not found")
+
+    user_id = get_user_identifier()
+    is_complete = DevotionalProgress.is_thread_complete(thread['id'], user_id)
+
+    # Get other available threads to suggest
+    all_threads = DevotionalThread.get_all(published_only=True)
+    other_threads = [t for t in all_threads if t['identifier'] != identifier]
+
+    return render_template('devotionals/complete.html',
+                         thread=thread,
+                         is_complete=is_complete,
+                         other_threads=other_threads)
+
+
+# Devotional email routes
+@app.route('/devotionals/subscribe', methods=['POST'])
+def devotional_subscribe():
+    """Subscribe for email delivery of a thread."""
+    data = request.get_json()
+    email = data.get('email', '').strip().lower()
+    name = data.get('name', '').strip() or None
+    thread_identifier = data.get('thread_identifier')
+    receive_new_threads = data.get('receive_new_threads', True)
+
+    if not email:
+        return jsonify({'error': 'Email is required'}), 400
+
+    # Basic email validation
+    import re
+    email_regex = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+    if not re.match(email_regex, email):
+        return jsonify({'error': 'Invalid email address'}), 400
+
+    try:
+        # Create or update subscriber
+        subscriber = DevotionalSubscriber.create(email, name, receive_new_threads)
+
+        # If thread specified, create enrollment
+        if thread_identifier:
+            thread = DevotionalThread.get_by_identifier(thread_identifier)
+            if thread:
+                DevotionalEnrollment.create(subscriber['id'], thread['id'])
+
+        return jsonify({
+            'success': True,
+            'message': 'Successfully subscribed! You\'ll receive your first devotional shortly.'
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/devotionals/unsubscribe/<token>')
+def devotional_unsubscribe(token):
+    """Unsubscribe from devotional emails."""
+    subscriber = DevotionalSubscriber.get_by_token(token)
+    if not subscriber:
+        return render_template('error.html',
+                             error="Invalid unsubscribe link",
+                             code=404), 404
+
+    DevotionalSubscriber.unsubscribe(token)
+    return render_template('devotionals/unsubscribed.html', email=subscriber['email'])
+
+
+@app.route('/devotionals/save-progress', methods=['POST'])
+def devotional_save_progress():
+    """Save progress via email - sends sync link."""
+    from devotional_utils import send_sync_email
+
+    data = request.get_json()
+    email = data.get('email', '').strip().lower()
+
+    if not email:
+        return jsonify({'error': 'Email is required'}), 400
+
+    # Basic email validation
+    import re
+    email_regex = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+    if not re.match(email_regex, email):
+        return jsonify({'error': 'Invalid email address'}), 400
+
+    # Get current user identifier
+    user_id = get_user_identifier()
+
+    # Check if subscriber exists
+    existing = DevotionalSubscriber.get_by_email(email)
+
+    if existing:
+        # Rate limiting - check if we recently sent an email
+        if not DevotionalSubscriber.can_send_sync_email(email, minutes=15):
+            return jsonify({
+                'success': True,
+                'message': 'A sync link was recently sent to this email. Please check your inbox (and spam folder).'
+            })
+
+        # Update user_identifier if not set
+        if not existing['user_identifier']:
+            DevotionalSubscriber.link_user_identifier(email, user_id)
+
+        # Send sync email
+        if send_sync_email(email, existing['unsubscribe_token']):
+            DevotionalSubscriber.update_sync_email_sent(email)
+            return jsonify({
+                'success': True,
+                'message': 'Sync link sent! Check your email to access your progress from any device.'
+            })
+        else:
+            return jsonify({'error': 'Failed to send email. Please try again.'}), 500
+    else:
+        # Create new subscriber with user_identifier
+        subscriber = DevotionalSubscriber.create(email, user_identifier=user_id)
+        if subscriber:
+            if send_sync_email(email, subscriber['unsubscribe_token']):
+                DevotionalSubscriber.update_sync_email_sent(email)
+                return jsonify({
+                    'success': True,
+                    'message': 'Sync link sent! Check your email to access your progress from any device.'
+                })
+            else:
+                return jsonify({'error': 'Failed to send email. Please try again.'}), 500
+        else:
+            return jsonify({'error': 'Failed to save. Please try again.'}), 500
+
+
+@app.route('/devotionals/sync/<token>')
+def devotional_sync(token):
+    """Sync progress from email link - sets user's session to match subscriber's progress."""
+    subscriber = DevotionalSubscriber.get_by_token(token)
+    if not subscriber:
+        return render_template('error.html',
+                             error="Invalid or expired sync link",
+                             code=404), 404
+
+    if not subscriber['user_identifier']:
+        # No progress to sync - just set up fresh
+        new_user_id = get_user_identifier()
+        DevotionalSubscriber.link_user_identifier(subscriber['email'], new_user_id)
+        flash_message = "Your email is now linked. Your progress will be saved automatically."
+    else:
+        # Set session to use the subscriber's user_identifier
+        from flask import session
+        session['devotional_user_id'] = subscriber['user_identifier']
+        session.permanent = True
+        flash_message = "Progress synced! You can continue where you left off."
+
+    # Redirect to devotionals index
+    return redirect(url_for('devotionals_index'))
+
+
+# Admin devotional routes
+@app.route('/admin/devotionals')
+@require_admin_ip
+def admin_devotionals():
+    """Devotional admin dashboard."""
+    threads = DevotionalThread.get_all()
+    subscribers = DevotionalSubscriber.get_all_active()
+
+    # Add devotional counts to threads
+    for thread in threads:
+        thread['devotional_count'] = DevotionalThread.count_devotionals(thread['id'])
+
+    return render_template('devotionals/admin.html',
+                         threads=threads,
+                         subscribers=subscribers)
+
+
+@app.route('/admin/devotionals/threads/create', methods=['GET', 'POST'])
+@require_admin_ip
+def create_devotional_thread():
+    """Create a new devotional thread."""
+    if request.method == 'GET':
+        return render_template('devotionals/create_thread.html')
+
+    # Handle POST
+    try:
+        title = request.form.get('title')
+        if not title:
+            return jsonify({'error': 'Title is required'}), 400
+
+        identifier = request.form.get('identifier')
+        if not identifier:
+            identifier = generate_devotional_identifier(title)
+
+        # Check for duplicate identifier
+        existing = DevotionalThread.get_by_identifier(identifier)
+        if existing:
+            return jsonify({'error': f'Identifier "{identifier}" already exists'}), 400
+
+        description = request.form.get('description')
+        author = request.form.get('author')
+        total_days = int(request.form.get('total_days', 1))
+        is_published = request.form.get('is_published') == 'on'
+
+        # Handle cover image upload
+        cover_image = None
+        if 'cover_image' in request.files and request.files['cover_image'].filename:
+            # Create thread first to get ID
+            thread_id = DevotionalThread.create(
+                identifier=identifier,
+                title=title,
+                description=description,
+                author=author,
+                total_days=total_days,
+                is_published=is_published
+            )
+            cover_image = process_cover_image(request.files['cover_image'], thread_id)
+            if cover_image:
+                DevotionalThread.update(thread_id, cover_image=cover_image)
+        else:
+            thread_id = DevotionalThread.create(
+                identifier=identifier,
+                title=title,
+                description=description,
+                author=author,
+                total_days=total_days,
+                is_published=is_published
+            )
+
+        thread = DevotionalThread.get_by_id(thread_id)
+
+        return jsonify({
+            'success': True,
+            'thread': dict(thread),
+            'url': url_for('admin_edit_thread', thread_id=thread_id)
+        })
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/admin/devotionals/threads/<int:thread_id>/edit', methods=['GET', 'POST'])
+@require_admin_ip
+def admin_edit_thread(thread_id):
+    """Edit a devotional thread."""
+    thread = DevotionalThread.get_by_id(thread_id)
+    if not thread:
+        abort(404, description="Thread not found")
+
+    if request.method == 'GET':
+        devotionals = DevotionalThread.get_devotionals(thread_id)
+        return render_template('devotionals/create_thread.html',
+                             thread=thread,
+                             devotionals=devotionals,
+                             editing=True)
+
+    # Handle POST
+    try:
+        update_data = {}
+
+        if request.form.get('title'):
+            update_data['title'] = request.form.get('title')
+        if request.form.get('identifier'):
+            update_data['identifier'] = request.form.get('identifier')
+        if 'description' in request.form:
+            update_data['description'] = request.form.get('description')
+        if 'author' in request.form:
+            update_data['author'] = request.form.get('author')
+        if request.form.get('total_days'):
+            update_data['total_days'] = int(request.form.get('total_days'))
+
+        update_data['is_published'] = request.form.get('is_published') == 'on'
+
+        # Handle cover image upload
+        if 'cover_image' in request.files and request.files['cover_image'].filename:
+            cover_image = process_cover_image(request.files['cover_image'], thread_id)
+            if cover_image:
+                update_data['cover_image'] = cover_image
+
+        DevotionalThread.update(thread_id, **update_data)
+        updated_thread = DevotionalThread.get_by_id(thread_id)
+
+        return jsonify({
+            'success': True,
+            'thread': dict(updated_thread)
+        })
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/admin/devotionals/threads/<int:thread_id>/days/create', methods=['GET', 'POST'])
+@require_admin_ip
+def create_devotional_day(thread_id):
+    """Add a new day to a thread."""
+    thread = DevotionalThread.get_by_id(thread_id)
+    if not thread:
+        abort(404, description="Thread not found")
+
+    if request.method == 'GET':
+        # Suggest next day number
+        existing_count = DevotionalThread.count_devotionals(thread_id)
+        suggested_day = existing_count + 1
+        return render_template('devotionals/create_day.html',
+                             thread=thread,
+                             suggested_day=suggested_day)
+
+    # Handle POST
+    try:
+        day_number = int(request.form.get('day_number', 1))
+        title = request.form.get('title')
+        if not title:
+            return jsonify({'error': 'Title is required'}), 400
+
+        content = request.form.get('content')
+        if not content:
+            return jsonify({'error': 'Content is required'}), 400
+
+        devotional_id = Devotional.create(
+            thread_id=thread_id,
+            day_number=day_number,
+            title=title,
+            content=content,
+            scripture_reference=request.form.get('scripture_reference'),
+            scripture_text=request.form.get('scripture_text'),
+            reflection_questions=request.form.get('reflection_questions'),
+            prayer=request.form.get('prayer')
+        )
+
+        # Update thread total_days if needed
+        if day_number > thread['total_days']:
+            DevotionalThread.update(thread_id, total_days=day_number)
+
+        # Queue audio generation in background
+        from devotional_utils import queue_audio_generation
+        queue_audio_generation(devotional_id)
+
+        devotional = Devotional.get_by_id(devotional_id)
+
+        return jsonify({
+            'success': True,
+            'devotional': dict(devotional),
+            'url': url_for('admin_edit_thread', thread_id=thread_id)
+        })
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/admin/devotionals/days/<int:devotional_id>/edit', methods=['GET', 'POST'])
+@require_admin_ip
+def admin_edit_devotional(devotional_id):
+    """Edit a devotional day."""
+    devotional = Devotional.get_by_id(devotional_id)
+    if not devotional:
+        abort(404, description="Devotional not found")
+
+    thread = DevotionalThread.get_by_id(devotional['thread_id'])
+
+    if request.method == 'GET':
+        return render_template('devotionals/create_day.html',
+                             thread=thread,
+                             devotional=devotional,
+                             editing=True)
+
+    # Handle POST
+    try:
+        update_data = {}
+
+        if request.form.get('day_number'):
+            update_data['day_number'] = int(request.form.get('day_number'))
+        if request.form.get('title'):
+            update_data['title'] = request.form.get('title')
+        if 'content' in request.form:
+            update_data['content'] = request.form.get('content')
+        if 'scripture_reference' in request.form:
+            update_data['scripture_reference'] = request.form.get('scripture_reference')
+        if 'scripture_text' in request.form:
+            update_data['scripture_text'] = request.form.get('scripture_text')
+        if 'reflection_questions' in request.form:
+            update_data['reflection_questions'] = request.form.get('reflection_questions')
+        if 'prayer' in request.form:
+            update_data['prayer'] = request.form.get('prayer')
+
+        Devotional.update(devotional_id, **update_data)
+        updated = Devotional.get_by_id(devotional_id)
+
+        return jsonify({
+            'success': True,
+            'devotional': dict(updated)
+        })
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/admin/devotionals/days/<int:devotional_id>/generate-audio', methods=['POST'])
+@require_admin_ip
+def generate_devotional_audio_route(devotional_id):
+    """Generate TTS audio for a devotional."""
+    devotional = Devotional.get_by_id(devotional_id)
+    if not devotional:
+        return jsonify({'error': 'Devotional not found'}), 404
+
+    try:
+        filename, duration = generate_devotional_audio(devotional)
+        if filename:
+            Devotional.update(devotional_id, audio_filename=filename, audio_duration=duration)
+            return jsonify({
+                'success': True,
+                'filename': filename,
+                'duration': duration,
+                'duration_formatted': format_audio_duration(duration) if duration else None
+            })
+        else:
+            return jsonify({'error': 'Audio generation failed. Check Google Cloud credentials.'}), 500
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/admin/devotionals/threads/<int:thread_id>', methods=['DELETE'])
+@require_admin_ip
+def delete_devotional_thread(thread_id):
+    """Delete a devotional thread."""
+    try:
+        DevotionalThread.delete(thread_id)
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/admin/devotionals/days/<int:devotional_id>', methods=['DELETE'])
+@require_admin_ip
+def delete_devotional_day(devotional_id):
+    """Delete a devotional day."""
+    try:
+        Devotional.delete(devotional_id)
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/admin/devotionals/import', methods=['POST'])
+@require_admin_ip
+def import_devotional_json():
+    """Import a devotional thread from a JSON file."""
+    from devotional_utils import import_devotional_from_json
+    import json
+
+    try:
+        # Check for file upload
+        if 'json_file' not in request.files:
+            return jsonify({'error': 'No file uploaded'}), 400
+
+        file = request.files['json_file']
+        if file.filename == '':
+            return jsonify({'error': 'No file selected'}), 400
+
+        if not file.filename.endswith('.json'):
+            return jsonify({'error': 'File must be a JSON file'}), 400
+
+        # Parse JSON
+        try:
+            json_data = json.load(file)
+        except json.JSONDecodeError as e:
+            return jsonify({'error': f'Invalid JSON: {str(e)}'}), 400
+
+        # Get options from form
+        publish = request.form.get('publish') == 'on'
+        skip_audio = request.form.get('skip_audio') == 'on'
+
+        # Import the devotional (audio generated in parallel by default)
+        result = import_devotional_from_json(
+            json_data,
+            publish=publish,
+            skip_audio=skip_audio
+        )
+
+        if result['success']:
+            return jsonify({
+                'success': True,
+                'message': result['message'],
+                'thread_id': result['thread_id'],
+                'identifier': result['identifier'],
+                'title': result['title'],
+                'days_created': result['days_created']
+            })
+        else:
+            return jsonify({'error': result['message']}), 400
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+# Devotional API routes
+@app.route('/api/devotionals/threads')
+def api_devotional_threads():
+    """Get all published threads as JSON."""
+    threads = DevotionalThread.get_all(published_only=True)
+    return jsonify([dict(t) for t in threads])
+
+
+@app.route('/api/devotionals/progress/<identifier>')
+def api_devotional_progress(identifier):
+    """Get user's progress for a thread."""
+    thread = DevotionalThread.get_by_identifier(identifier)
+    if not thread:
+        return jsonify({'error': 'Thread not found'}), 404
+
+    user_id = get_user_identifier()
+    progress = DevotionalProgress.get(thread['id'], user_id)
+
+    if progress:
+        return jsonify({
+            'current_day': progress['current_day'],
+            'completed_days': progress['completed_days'],
+            'is_complete': DevotionalProgress.is_thread_complete(thread['id'], user_id),
+            'total_days': thread['total_days']
+        })
+    else:
+        return jsonify({
+            'current_day': 0,
+            'completed_days': [],
+            'is_complete': False,
+            'total_days': thread['total_days']
+        })
+
+
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)

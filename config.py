@@ -1,5 +1,6 @@
 """Configuration management for HastingTX Music application."""
 import os
+from datetime import timedelta
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
@@ -12,6 +13,7 @@ class Config:
     # Flask settings
     SECRET_KEY = os.getenv('SECRET_KEY', 'dev-secret-key-change-in-production')
     FLASK_ENV = os.getenv('FLASK_ENV', 'development')
+    PERMANENT_SESSION_LIFETIME = timedelta(days=365)  # 1 year session cookie
 
     # Database settings
     DB_HOST = os.getenv('DB_HOST', 'localhost')

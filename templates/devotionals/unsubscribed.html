@@ -1,0 +1,80 @@
+{% extends "base_devotional.html" %}
+
+{% block title %}Unsubscribed - Devotionals{% endblock %}
+
+{% block content %}
+<div class="unsubscribe-page">
+    <div class="message-card">
+        <h1>You've Been Unsubscribed</h1>
+        <p>The email address <strong>{{ email }}</strong> has been unsubscribed from devotional emails.</p>
+        <p>We're sorry to see you go! If you change your mind, you can always subscribe again on any devotional page.</p>
+
+        <div class="actions">
+            <a href="{{ url_for('devotionals_index') }}" class="btn btn-primary">Browse Devotionals</a>
+            <a href="{{ url_for('index') }}" class="btn btn-secondary">Return Home</a>
+        </div>
+    </div>
+</div>
+
+<style>
+.unsubscribe-page {
+    max-width: 600px;
+    margin: 4rem auto;
+    padding: 1rem;
+}
+
+.message-card {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    padding: 3rem;
+    text-align: center;
+}
+
+.message-card h1 {
+    color: #333;
+    margin: 0 0 1rem;
+}
+
+.message-card p {
+    color: #666;
+    line-height: 1.6;
+}
+
+.actions {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+    margin-top: 2rem;
+    flex-wrap: wrap;
+}
+
+.btn {
+    display: inline-block;
+    padding: 0.75rem 1.5rem;
+    border: none;
+    border-radius: 6px;
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: none;
+}
+
+.btn-primary {
+    background: #8B4513;
+    color: white;
+}
+
+.btn-primary:hover {
+    background: #A0522D;
+}
+
+.btn-secondary {
+    background: #f0f0f0;
+    color: #333;
+}
+
+.btn-secondary:hover {
+    background: #e0e0e0;
+}
+</style>
+{% endblock %}
