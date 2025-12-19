@@ -9,7 +9,7 @@ from werkzeug.utils import secure_filename
 from PIL import Image
 
 from config import config
-from models import Song, Playlist, Rating, Comment, Subscriber, EmailLog, Genre, Tag
+from models import Song, Playlist, Rating, Comment, Subscriber, EmailLog, Genre, Tag, ActivityLog
 from utils import (
     allowed_file, generate_identifier, extract_mp3_metadata, write_mp3_metadata,
     save_uploaded_file, is_ip_allowed, format_duration, format_file_size
@@ -52,6 +52,36 @@ def inject_admin_status():
     # Get tags that have songs for navigation
     nav_tags = Tag.get_with_songs()
     return dict(is_admin_ip=is_admin, nav_playlists=nav_playlists, nav_albums=nav_albums, nav_genres=nav_genres, nav_tags=nav_tags)
+
+
+# Request hooks for activity logging
+@app.before_request
+def log_page_visit():
+    """Log page visits for stats tracking (excludes static files, API calls, and admin pages)."""
+    path = request.path
+
+    # Skip logging for certain paths
+    skip_prefixes = (
+        '/static/',
+        '/api/',
+        '/admin/',
+        '/download/',
+        '/favicon',
+    )
+
+    # Skip static files and API calls
+    if any(path.startswith(prefix) for prefix in skip_prefixes):
+        return
+
+    # Skip if path ends with common static file extensions
+    if path.endswith(('.css', '.js', '.ico', '.png', '.jpg', '.mp3', '.woff', '.woff2')):
+        return
+
+    # Log the page visit
+    try:
+        ActivityLog.log_event('visit', request.remote_addr, page_path=path, user_agent=request.user_agent.string)
+    except Exception:
+        pass  # Don't break the request if logging fails
 
 
 # Template filters
@@ -109,8 +139,9 @@ def song(identifier):
     if not song:
         abort(404, description=f"Song '{identifier}' not found")
 
-    # Track listen
+    # Track listen (both legacy counter and activity log)
     Song.increment_listen_count(song['id'])
+    ActivityLog.log_event('play', request.remote_addr, song_id=song['id'], user_agent=request.user_agent.string)
 
     # Get rating stats
     rating_stats = Rating.get_song_stats(song['id'])
@@ -253,8 +284,9 @@ def download_song(identifier):
     if not os.path.exists(file_path):
         abort(404, description="File not found on server")
 
-    # Track download
+    # Track download (both legacy counter and activity log)
     Song.increment_download_count(song['id'])
+    ActivityLog.log_event('download', request.remote_addr, song_id=song['id'], user_agent=request.user_agent.string)
 
     # Use original filename or song title
     download_name = f"{song['title']}.mp3" if song['title'] else song['filename']
@@ -307,6 +339,35 @@ def admin():
     songs = Song.get_all()
     playlists = Playlist.get_all()
     return render_template('admin.html', songs=songs, playlists=playlists)
+
+
+@app.route('/admin/stats')
+@require_admin_ip
+def admin_stats():
+    """Admin stats dashboard showing visitor and song activity."""
+    # Get time filter from query string (default: 24 hours)
+    hours = request.args.get('hours', 24, type=int)
+    if hours not in [24, 168, 720]:  # 24h, 7d, 30d
+        hours = 24
+
+    # Get visitor stats
+    visitor_stats = ActivityLog.get_visitor_stats()
+
+    # Get song stats for the selected time period
+    song_stats = ActivityLog.get_song_stats(hours=hours)
+
+    # Get recent activity
+    recent_activity = ActivityLog.get_recent_activity(limit=50)
+
+    # Get top songs for the period
+    top_songs = ActivityLog.get_top_songs(hours=hours, limit=10)
+
+    return render_template('admin_stats.html',
+                         visitor_stats=visitor_stats,
+                         song_stats=song_stats,
+                         recent_activity=recent_activity,
+                         top_songs=top_songs,
+                         selected_hours=hours)
 
 
 @app.route('/admin/upload', methods=['GET', 'POST'])
@@ -739,6 +800,7 @@ def record_listen(song_id):
             return jsonify({'error': 'Song not found'}), 404
 
         Song.increment_listen_count(song_id)
+        ActivityLog.log_event('play', request.remote_addr, song_id=song_id, user_agent=request.user_agent.string)
         return jsonify({'success': True})
     except Exception as e:
         return jsonify({'error': str(e)}), 500

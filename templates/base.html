@@ -1,113 +1,488 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="scroll-smooth">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#ffffff">
     <title>{% block title %}HastingTX Music{% endblock %}</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=20251212b">
+
+    <!-- Fonts: DM Sans (body) + DM Serif Display (headings) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300..700;1,9..40,300..700&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet">
+
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['DM Sans', 'system-ui', '-apple-system', 'sans-serif'],
+            serif: ['DM Serif Display', 'Georgia', 'serif'],
+          },
+          colors: {
+            primary: {
+              50: '#f0f9ff',
+              100: '#e0f2fe',
+              200: '#bae6fd',
+              300: '#7dd3fc',
+              400: '#38bdf8',
+              500: '#0ea5e9',
+              600: '#0284c7',
+              700: '#0369a1',
+              800: '#075985',
+              900: '#0c4a6e',
+              950: '#082f49',
+            },
+            surface: {
+              50: '#f8fafc',
+              100: '#f1f5f9',
+              200: '#e2e8f0',
+              800: '#1e293b',
+              900: '#0f172a',
+              950: '#020617',
+            }
+          },
+          boxShadow: {
+            'glass': '0 4px 30px rgba(0, 0, 0, 0.05)',
+            'glass-dark': '0 4px 30px rgba(0, 0, 0, 0.3)',
+            'card': '0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04)',
+            'card-hover': '0 20px 40px rgba(0, 0, 0, 0.08)',
+            'player': '0 -4px 30px rgba(0, 0, 0, 0.1)',
+          },
+          animation: {
+            'fade-in': 'fadeIn 0.5s ease-out',
+            'slide-up': 'slideUp 0.5s ease-out',
+            'slide-down': 'slideDown 0.3s ease-out',
+          },
+          keyframes: {
+            fadeIn: {
+              '0%': { opacity: '0' },
+              '100%': { opacity: '1' },
+            },
+            slideUp: {
+              '0%': { opacity: '0', transform: 'translateY(10px)' },
+              '100%': { opacity: '1', transform: 'translateY(0)' },
+            },
+            slideDown: {
+              '0%': { opacity: '0', transform: 'translateY(-10px)' },
+              '100%': { opacity: '1', transform: 'translateY(0)' },
+            },
+          },
+        }
+      }
+    }
+    </script>
+
+    <!-- Theme script (must be in head to prevent flash) -->
+    <script>
+    (function(){
+      const t = localStorage.getItem('hastingtx-theme');
+      const d = t === 'dark' || (!t && window.matchMedia('(prefers-color-scheme: dark)').matches);
+      if (d) document.documentElement.classList.add('dark');
+      document.querySelector('meta[name="theme-color"]')?.setAttribute('content', d ? '#0f172a' : '#ffffff');
+    })();
+    </script>
+
+    <style>
+      /* Theme transition */
+      .theme-transitioning,
+      .theme-transitioning * {
+        transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease !important;
+      }
+
+      /* Custom scrollbar */
+      ::-webkit-scrollbar {
+        width: 10px;
+        height: 10px;
+      }
+      ::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #cbd5e1;
+        border-radius: 5px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: #94a3b8;
+      }
+      .dark ::-webkit-scrollbar-thumb {
+        background: #475569;
+      }
+      .dark ::-webkit-scrollbar-thumb:hover {
+        background: #64748b;
+      }
+
+      /* Dropdown animation */
+      .dropdown-menu {
+        transform-origin: top;
+        transform: scaleY(0);
+        opacity: 0;
+        transition: transform 0.2s ease, opacity 0.2s ease;
+      }
+      .nav-dropdown:hover .dropdown-menu,
+      .nav-dropdown.dropdown-open .dropdown-menu {
+        transform: scaleY(1);
+        opacity: 1;
+      }
+
+      /* Focus ring utility */
+      .focus-ring {
+        outline: none;
+      }
+      .focus-ring:focus-visible {
+        box-shadow: 0 0 0 2px #fff, 0 0 0 4px #0ea5e9;
+      }
+      .dark .focus-ring:focus-visible {
+        box-shadow: 0 0 0 2px #0f172a, 0 0 0 4px #38bdf8;
+      }
+
+      /* Mobile menu icon toggle */
+      .menu-open .icon-menu { display: none; }
+      .menu-open .icon-close { display: block; }
+      .icon-close { display: none; }
+    </style>
+
     {% block extra_css %}{% endblock %}
 </head>
-<body>
-    <header>
-        <nav class="navbar">
-            <div class="container">
-                <h1 class="logo">
-                    <a href="{{ url_for('index') }}">HastingTX Music</a>
-                </h1>
-                <button class="nav-toggle" id="nav-toggle" aria-label="Toggle navigation">
-                    <span class="hamburger"></span>
-                </button>
-                <ul class="nav-links" id="nav-links">
-                    <li><a href="{{ url_for('playlist', identifier='all') }}">All Songs</a></li>
+<body class="min-h-screen bg-white dark:bg-surface-900 text-slate-900 dark:text-slate-100 font-sans antialiased">
+
+    <!-- Navigation -->
+    <header class="sticky top-0 z-50 bg-white/80 dark:bg-surface-900/80 backdrop-blur-xl border-b border-slate-200/50 dark:border-slate-700/50 shadow-glass dark:shadow-glass-dark">
+        <nav class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <!-- Logo -->
+                <a href="{{ url_for('index') }}" class="group flex items-center gap-2 focus-ring rounded-lg">
+                    <span class="font-serif text-xl sm:text-2xl text-slate-900 dark:text-white tracking-tight">
+                        HastingTX
+                    </span>
+                    <span class="text-primary-600 dark:text-primary-400 font-medium text-sm sm:text-base">
+                        Music
+                    </span>
+                </a>
+
+                <!-- Desktop Navigation -->
+                <div class="hidden lg:flex items-center gap-1">
+                    <a href="{{ url_for('playlist', identifier='all') }}" class="px-3 py-2 text-sm font-medium text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors">
+                        All Songs
+                    </a>
+
                     {% if nav_albums %}
-                    <li class="nav-dropdown">
-                        <a href="#" class="dropdown-toggle">Albums ▾</a>
-                        <ul class="dropdown-menu">
+                    <div class="relative nav-dropdown">
+                        <button class="px-3 py-2 text-sm font-medium text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors inline-flex items-center gap-1">
+                            Albums
+                            <svg class="w-4 h-4 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                            </svg>
+                        </button>
+                        <div class="dropdown-menu absolute top-full left-0 mt-1 w-56 bg-white dark:bg-surface-800 rounded-xl shadow-lg ring-1 ring-slate-200 dark:ring-slate-700 py-2 max-h-80 overflow-y-auto">
                             {% for album_name in nav_albums %}
-                            <li><a href="{{ url_for('album', album_name=album_name) }}">{{ album_name }}</a></li>
+                            <a href="{{ url_for('album', album_name=album_name) }}" class="block px-4 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white transition-colors">
+                                {{ album_name }}
+                            </a>
                             {% endfor %}
-                        </ul>
-                    </li>
+                        </div>
+                    </div>
                     {% endif %}
+
                     {% if nav_genres %}
-                    <li class="nav-dropdown">
-                        <a href="#" class="dropdown-toggle">Genres ▾</a>
-                        <ul class="dropdown-menu">
+                    <div class="relative nav-dropdown">
+                        <button class="px-3 py-2 text-sm font-medium text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors inline-flex items-center gap-1">
+                            Genres
+                            <svg class="w-4 h-4 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                            </svg>
+                        </button>
+                        <div class="dropdown-menu absolute top-full left-0 mt-1 w-56 bg-white dark:bg-surface-800 rounded-xl shadow-lg ring-1 ring-slate-200 dark:ring-slate-700 py-2 max-h-80 overflow-y-auto">
                             {% for g in nav_genres %}
-                            <li><a href="{{ url_for('genre', genre_name=g.name) }}">{{ g.name }} ({{ g.song_count }})</a></li>
+                            <a href="{{ url_for('genre', genre_name=g.name) }}" class="block px-4 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white transition-colors">
+                                {{ g.name }} <span class="text-slate-400">({{ g.song_count }})</span>
+                            </a>
                             {% endfor %}
-                        </ul>
-                    </li>
+                        </div>
+                    </div>
                     {% endif %}
+
                     {% if nav_tags %}
-                    <li class="nav-dropdown">
-                        <a href="#" class="dropdown-toggle">Tags ▾</a>
-                        <ul class="dropdown-menu">
+                    <div class="relative nav-dropdown">
+                        <button class="px-3 py-2 text-sm font-medium text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors inline-flex items-center gap-1">
+                            Tags
+                            <svg class="w-4 h-4 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                            </svg>
+                        </button>
+                        <div class="dropdown-menu absolute top-full left-0 mt-1 w-56 bg-white dark:bg-surface-800 rounded-xl shadow-lg ring-1 ring-slate-200 dark:ring-slate-700 py-2 max-h-80 overflow-y-auto">
                             {% for t in nav_tags %}
-                            <li><a href="{{ url_for('tag', tag_name=t.name) }}">#{{ t.name }} ({{ t.song_count }})</a></li>
+                            <a href="{{ url_for('tag', tag_name=t.name) }}" class="block px-4 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white transition-colors">
+                                #{{ t.name }} <span class="text-slate-400">({{ t.song_count }})</span>
+                            </a>
                             {% endfor %}
-                        </ul>
-                    </li>
+                        </div>
+                    </div>
                     {% endif %}
+
                     {% if nav_playlists %}
-                    <li class="nav-dropdown">
-                        <a href="#" class="dropdown-toggle">Playlists ▾</a>
-                        <ul class="dropdown-menu">
+                    <div class="relative nav-dropdown">
+                        <button class="px-3 py-2 text-sm font-medium text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors inline-flex items-center gap-1">
+                            Playlists
+                            <svg class="w-4 h-4 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                            </svg>
+                        </button>
+                        <div class="dropdown-menu absolute top-full left-0 mt-1 w-56 bg-white dark:bg-surface-800 rounded-xl shadow-lg ring-1 ring-slate-200 dark:ring-slate-700 py-2 max-h-80 overflow-y-auto">
                             {% for pl in nav_playlists %}
-                            <li><a href="{{ url_for('playlist', identifier=pl.identifier) }}">{{ pl.name }}</a></li>
+                            <a href="{{ url_for('playlist', identifier=pl.identifier) }}" class="block px-4 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white transition-colors">
+                                {{ pl.name }}
+                            </a>
                             {% endfor %}
-                        </ul>
-                    </li>
+                        </div>
+                    </div>
                     {% endif %}
-                    <li><a href="{{ url_for('gallery_index') }}">Letters From Dick</a></li>
-                    <li><a href="{{ url_for('devotionals_index') }}">Devotionals</a></li>
+
+                    <div class="w-px h-6 bg-slate-200 dark:bg-slate-700 mx-2"></div>
+
+                    <a href="{{ url_for('gallery_index') }}" class="px-3 py-2 text-sm font-medium text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors">
+                        Letters From Dick
+                    </a>
+
+                    <a href="{{ url_for('devotionals_index') }}" class="px-3 py-2 text-sm font-medium text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors">
+                        Devotionals
+                    </a>
+
+                    <!-- Theme Toggle -->
+                    <button id="theme-toggle" class="ml-2 p-2 rounded-lg text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors focus-ring" aria-label="Toggle dark mode">
+                        <!-- Sun icon (shown in dark mode) -->
+                        <svg class="w-5 h-5 hidden dark:block" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clip-rule="evenodd" />
+                        </svg>
+                        <!-- Moon icon (shown in light mode) -->
+                        <svg class="w-5 h-5 block dark:hidden" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" />
+                        </svg>
+                    </button>
+
                     {% if is_admin_ip %}
-                    <li><a href="{{ url_for('upload') }}" class="admin-link">Upload</a></li>
-                    <li><a href="{{ url_for('admin') }}" class="admin-link">Admin</a></li>
-                    <li><a href="{{ url_for('admin_gallery') }}" class="admin-link">Gallery Admin</a></li>
-                    <li><a href="{{ url_for('admin_devotionals') }}" class="admin-link">Devotional Admin</a></li>
+                    <div class="w-px h-6 bg-slate-200 dark:bg-slate-700 mx-2"></div>
+                    <a href="{{ url_for('upload') }}" class="px-3 py-2 text-sm font-medium text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 rounded-lg transition-colors">
+                        Upload
+                    </a>
+                    <a href="{{ url_for('admin') }}" class="px-3 py-2 text-sm font-medium text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 rounded-lg transition-colors">
+                        Admin
+                    </a>
+                    <a href="{{ url_for('admin_stats') }}" class="px-3 py-2 text-sm font-medium text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 rounded-lg transition-colors">
+                        Stats
+                    </a>
                     {% endif %}
+
                     {% block nav_extra %}{% endblock %}
-                </ul>
+                </div>
+
+                <!-- Mobile: Theme Toggle + Menu Button -->
+                <div class="flex lg:hidden items-center gap-2">
+                    <button id="theme-toggle-mobile" class="p-2 rounded-lg text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors focus-ring" aria-label="Toggle dark mode">
+                        <svg class="w-5 h-5 hidden dark:block" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clip-rule="evenodd" />
+                        </svg>
+                        <svg class="w-5 h-5 block dark:hidden" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" />
+                        </svg>
+                    </button>
+                    <button id="mobile-menu-btn" class="p-2 rounded-lg text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors focus-ring" aria-label="Open menu">
+                        <!-- Menu icon (hamburger) -->
+                        <svg class="w-6 h-6 icon-menu" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+                        </svg>
+                        <!-- Close icon (X) -->
+                        <svg class="w-6 h-6 icon-close" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
             </div>
         </nav>
+
+        <!-- Mobile Menu -->
+        <div id="mobile-menu" class="lg:hidden hidden bg-white dark:bg-surface-900 border-t border-slate-200 dark:border-slate-700 animate-slide-down">
+            <div class="px-4 py-4 space-y-1 max-h-[70vh] overflow-y-auto">
+                <a href="{{ url_for('playlist', identifier='all') }}" class="block px-4 py-3 text-base font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors">
+                    All Songs
+                </a>
+
+                {% if nav_albums %}
+                <div class="mobile-dropdown">
+                    <button class="mobile-dropdown-toggle w-full flex items-center justify-between px-4 py-3 text-base font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors">
+                        Albums
+                        <svg class="w-5 h-5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                        </svg>
+                    </button>
+                    <div class="mobile-dropdown-menu hidden pl-4 py-2 space-y-1">
+                        {% for album_name in nav_albums %}
+                        <a href="{{ url_for('album', album_name=album_name) }}" class="block px-4 py-2 text-sm text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors">
+                            {{ album_name }}
+                        </a>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+
+                {% if nav_genres %}
+                <div class="mobile-dropdown">
+                    <button class="mobile-dropdown-toggle w-full flex items-center justify-between px-4 py-3 text-base font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors">
+                        Genres
+                        <svg class="w-5 h-5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                        </svg>
+                    </button>
+                    <div class="mobile-dropdown-menu hidden pl-4 py-2 space-y-1">
+                        {% for g in nav_genres %}
+                        <a href="{{ url_for('genre', genre_name=g.name) }}" class="block px-4 py-2 text-sm text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors">
+                            {{ g.name }} ({{ g.song_count }})
+                        </a>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+
+                {% if nav_tags %}
+                <div class="mobile-dropdown">
+                    <button class="mobile-dropdown-toggle w-full flex items-center justify-between px-4 py-3 text-base font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors">
+                        Tags
+                        <svg class="w-5 h-5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                        </svg>
+                    </button>
+                    <div class="mobile-dropdown-menu hidden pl-4 py-2 space-y-1">
+                        {% for t in nav_tags %}
+                        <a href="{{ url_for('tag', tag_name=t.name) }}" class="block px-4 py-2 text-sm text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors">
+                            #{{ t.name }} ({{ t.song_count }})
+                        </a>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+
+                {% if nav_playlists %}
+                <div class="mobile-dropdown">
+                    <button class="mobile-dropdown-toggle w-full flex items-center justify-between px-4 py-3 text-base font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors">
+                        Playlists
+                        <svg class="w-5 h-5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                        </svg>
+                    </button>
+                    <div class="mobile-dropdown-menu hidden pl-4 py-2 space-y-1">
+                        {% for pl in nav_playlists %}
+                        <a href="{{ url_for('playlist', identifier=pl.identifier) }}" class="block px-4 py-2 text-sm text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors">
+                            {{ pl.name }}
+                        </a>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+
+                <div class="h-px bg-slate-200 dark:bg-slate-700 my-3"></div>
+
+                <a href="{{ url_for('gallery_index') }}" class="block px-4 py-3 text-base font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors">
+                    Letters From Dick
+                </a>
+                <a href="{{ url_for('devotionals_index') }}" class="block px-4 py-3 text-base font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors">
+                    Devotionals
+                </a>
+
+                {% if is_admin_ip %}
+                <div class="h-px bg-slate-200 dark:bg-slate-700 my-3"></div>
+                <a href="{{ url_for('upload') }}" class="block px-4 py-3 text-base font-medium text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 rounded-lg transition-colors">
+                    Upload Song
+                </a>
+                <a href="{{ url_for('admin') }}" class="block px-4 py-3 text-base font-medium text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 rounded-lg transition-colors">
+                    Admin Dashboard
+                </a>
+                <a href="{{ url_for('admin_stats') }}" class="block px-4 py-3 text-base font-medium text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 rounded-lg transition-colors">
+                    Stats Dashboard
+                </a>
+                <a href="{{ url_for('admin_gallery') }}" class="block px-4 py-3 text-base font-medium text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 rounded-lg transition-colors">
+                    Gallery Admin
+                </a>
+                <a href="{{ url_for('admin_devotionals') }}" class="block px-4 py-3 text-base font-medium text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 rounded-lg transition-colors">
+                    Devotional Admin
+                </a>
+                {% endif %}
+            </div>
+        </div>
     </header>
 
-    <div class="subscribe-banner">
-        <div class="container">
-            <div class="subscribe-banner-content">
-                <div class="subscribe-banner-text">
-                    <h3>Get Notified of New Songs</h3>
-                    <small class="subscribe-note">Weekly updates every Friday at 6 PM</small>
+    <!-- Subscribe Banner -->
+    <div class="bg-gradient-to-r from-primary-50 via-sky-50 to-cyan-50 dark:from-primary-950/50 dark:via-sky-950/50 dark:to-cyan-950/50 border-b border-primary-100 dark:border-primary-900/50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+            <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div class="text-center sm:text-left">
+                    <h3 class="text-sm font-semibold text-primary-900 dark:text-primary-100">Get Notified of New Songs</h3>
+                    <p class="text-xs text-primary-700 dark:text-primary-400 mt-0.5">Weekly updates every Friday at 6 PM</p>
                 </div>
-                <div class="subscribe-banner-form">
-                    <form id="subscribe-form" class="subscribe-form">
-                        <input type="email" id="subscribe-email" name="email" placeholder="Enter your email address" required>
-                        <button type="submit" class="btn btn-primary">Subscribe</button>
-                    </form>
-                    <div id="subscribe-success" class="subscribe-message success-message" style="display: none;">
-                        <p id="subscribe-success-text"></p>
-                    </div>
-                    <div id="subscribe-error" class="subscribe-message error-message" style="display: none;">
-                        <p id="subscribe-error-text"></p>
-                    </div>
-                </div>
+                <form id="subscribe-form" class="flex w-full sm:w-auto gap-2">
+                    <input
+                        type="email"
+                        id="subscribe-email"
+                        name="email"
+                        placeholder="Enter your email"
+                        required
+                        class="flex-1 sm:w-64 px-4 py-2.5 text-sm bg-white dark:bg-surface-800 border border-primary-200 dark:border-primary-800 rounded-lg placeholder-slate-400 dark:placeholder-slate-500 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition-all"
+                    >
+                    <button type="submit" class="px-5 py-2.5 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 active:bg-primary-800 rounded-lg shadow-sm hover:shadow transition-all focus-ring">
+                        Subscribe
+                    </button>
+                </form>
+            </div>
+            <!-- Success/Error Messages -->
+            <div id="subscribe-success" class="hidden mt-3 p-3 bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-800 rounded-lg">
+                <p id="subscribe-success-text" class="text-sm text-emerald-800 dark:text-emerald-300"></p>
+            </div>
+            <div id="subscribe-error" class="hidden mt-3 p-3 bg-rose-50 dark:bg-rose-900/30 border border-rose-200 dark:border-rose-800 rounded-lg">
+                <p id="subscribe-error-text" class="text-sm text-rose-800 dark:text-rose-300"></p>
             </div>
         </div>
     </div>
 
-    <main class="container">
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-fade-in">
         {% block content %}{% endblock %}
     </main>
 
-    <footer>
-        <div class="container">
-            <p>&copy; 2025 HastingTX Music. Songs created by Richard &amp; Claude.</p>
+    <!-- Footer -->
+    <footer class="border-t border-slate-200 dark:border-slate-800 mt-auto">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
+                <p class="text-sm text-slate-500 dark:text-slate-400">
+                    &copy; 2025 HastingTX Music. Songs created by Richard &amp; Claude.
+                </p>
+                <div class="flex items-center gap-4">
+                    <a href="{{ url_for('devotionals_index') }}" class="text-sm text-slate-500 dark:text-slate-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors">
+                        Devotionals
+                    </a>
+                    <a href="{{ url_for('gallery_index') }}" class="text-sm text-slate-500 dark:text-slate-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors">
+                        Gallery
+                    </a>
+                </div>
+            </div>
         </div>
     </footer>
 
+    <!-- Theme Toggle Script -->
+    <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
+
+    <!-- Mobile Theme Toggle -->
     <script>
-    // Subscription form handler
+    document.getElementById('theme-toggle-mobile')?.addEventListener('click', function() {
+        if (window.HastingTXTheme) {
+            window.HastingTXTheme.toggle();
+        }
+    });
+    </script>
+
+    <!-- Subscription Form Handler -->
+    <script>
     const subscribeForm = document.getElementById('subscribe-form');
     if (subscribeForm) {
         subscribeForm.addEventListener('submit', function(e) {
@@ -122,74 +497,77 @@
             const errorText = document.getElementById('subscribe-error-text');
 
             // Hide previous messages
-            successDiv.style.display = 'none';
-            errorDiv.style.display = 'none';
+            successDiv.classList.add('hidden');
+            errorDiv.classList.add('hidden');
 
             // Disable button
             submitBtn.disabled = true;
+            const originalText = submitBtn.textContent;
             submitBtn.textContent = 'Subscribing...';
 
             fetch('/api/subscribe', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email: email })
             })
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
                     successText.textContent = data.message;
-                    successDiv.style.display = 'block';
+                    successDiv.classList.remove('hidden');
                     emailInput.value = '';
                 } else {
                     errorText.textContent = data.error || 'Subscription failed';
-                    errorDiv.style.display = 'block';
+                    errorDiv.classList.remove('hidden');
                 }
             })
-            .catch(error => {
+            .catch(function(error) {
                 console.error('Error:', error);
                 errorText.textContent = 'An error occurred. Please try again.';
-                errorDiv.style.display = 'block';
+                errorDiv.classList.remove('hidden');
             })
-            .finally(() => {
+            .finally(function() {
                 submitBtn.disabled = false;
-                submitBtn.textContent = 'Subscribe';
+                submitBtn.textContent = originalText;
             });
         });
     }
     </script>
 
+    <!-- Mobile Navigation -->
     <script>
-    // Mobile navigation toggle
-    const navToggle = document.getElementById('nav-toggle');
-    const navLinks = document.getElementById('nav-links');
+    (function() {
+        const mobileMenuBtn = document.getElementById('mobile-menu-btn');
+        const mobileMenu = document.getElementById('mobile-menu');
 
-    if (navToggle) {
-        navToggle.addEventListener('click', function() {
-            navLinks.classList.toggle('nav-open');
-            navToggle.classList.toggle('nav-open');
-        });
-
-        // Close menu when clicking a link (except dropdowns)
-        navLinks.querySelectorAll('a:not(.dropdown-toggle)').forEach(link => {
-            link.addEventListener('click', () => {
-                navLinks.classList.remove('nav-open');
-                navToggle.classList.remove('nav-open');
+        if (mobileMenuBtn && mobileMenu) {
+            mobileMenuBtn.addEventListener('click', function() {
+                const isOpen = !mobileMenu.classList.contains('hidden');
+                mobileMenu.classList.toggle('hidden', isOpen);
+                mobileMenuBtn.classList.toggle('menu-open', !isOpen);
             });
-        });
 
-        // Handle dropdown toggles on mobile
-        navLinks.querySelectorAll('.dropdown-toggle').forEach(toggle => {
-            toggle.addEventListener('click', function(e) {
-                if (window.innerWidth <= 768) {
-                    e.preventDefault();
-                    const parent = this.parentElement;
-                    parent.classList.toggle('dropdown-open');
-                }
+            // Mobile dropdown toggles
+            document.querySelectorAll('.mobile-dropdown-toggle').forEach(function(toggle) {
+                toggle.addEventListener('click', function() {
+                    const dropdown = this.closest('.mobile-dropdown');
+                    const menu = dropdown.querySelector('.mobile-dropdown-menu');
+                    const arrow = this.querySelector('svg');
+
+                    menu.classList.toggle('hidden');
+                    arrow.style.transform = menu.classList.contains('hidden') ? '' : 'rotate(180deg)';
+                });
             });
-        });
-    }
+
+            // Close menu when clicking a link (except dropdowns)
+            mobileMenu.querySelectorAll('a').forEach(function(link) {
+                link.addEventListener('click', function() {
+                    mobileMenu.classList.add('hidden');
+                    mobileMenuBtn.classList.remove('menu-open');
+                });
+            });
+        }
+    })();
     </script>
 
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>

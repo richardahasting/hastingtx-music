@@ -708,3 +708,157 @@ class EmailLog:
         """Get recent email logs."""
         query = "SELECT * FROM email_logs ORDER BY sent_at DESC LIMIT %s"
         return db.execute(query, (limit,))
+
+
+class ActivityLog:
+    """Activity log model for tracking visits, plays, and downloads."""
+
+    @staticmethod
+    def log_event(event_type, ip_address, song_id=None, page_path=None, user_agent=None):
+        """
+        Log an activity event.
+
+        Args:
+            event_type: Type of event ('visit', 'play', 'download')
+            ip_address: Client IP address
+            song_id: Optional song ID for play/download events
+            page_path: Optional page path for visit events
+            user_agent: Optional browser/client info
+
+        Returns:
+            Activity log record
+        """
+        query = """
+            INSERT INTO activity_log (event_type, ip_address, song_id, page_path, user_agent)
+            VALUES (%s, %s, %s, %s, %s)
+            RETURNING *
+        """
+        return db.insert(query, (event_type, ip_address, song_id, page_path, user_agent))
+
+    @staticmethod
+    def get_unique_visitors(hours=24):
+        """
+        Get count of unique visitors (unique IPs) in the last N hours.
+
+        Args:
+            hours: Number of hours to look back
+
+        Returns:
+            Integer count of unique IPs
+        """
+        query = """
+            SELECT COUNT(DISTINCT ip_address)::integer as count
+            FROM activity_log
+            WHERE created_at >= NOW() - INTERVAL '%s hours'
+        """
+        result = db.execute_one(query, (hours,))
+        return result['count'] if result else 0
+
+    @staticmethod
+    def get_visitor_stats():
+        """
+        Get visitor statistics for dashboard.
+
+        Returns:
+            Dict with visitor counts for 24h, 7d, and totals
+        """
+        query = """
+            SELECT
+                COUNT(DISTINCT CASE WHEN created_at >= NOW() - INTERVAL '24 hours' THEN ip_address END)::integer as visitors_24h,
+                COUNT(DISTINCT CASE WHEN created_at >= NOW() - INTERVAL '7 days' THEN ip_address END)::integer as visitors_7d,
+                COUNT(CASE WHEN event_type = 'play' AND created_at >= NOW() - INTERVAL '24 hours' THEN 1 END)::integer as plays_24h,
+                COUNT(CASE WHEN event_type = 'play' AND created_at >= NOW() - INTERVAL '7 days' THEN 1 END)::integer as plays_7d,
+                COUNT(CASE WHEN event_type = 'download' AND created_at >= NOW() - INTERVAL '24 hours' THEN 1 END)::integer as downloads_24h,
+                COUNT(CASE WHEN event_type = 'download' AND created_at >= NOW() - INTERVAL '7 days' THEN 1 END)::integer as downloads_7d,
+                COUNT(CASE WHEN event_type = 'visit' AND created_at >= NOW() - INTERVAL '24 hours' THEN 1 END)::integer as visits_24h,
+                COUNT(CASE WHEN event_type = 'visit' AND created_at >= NOW() - INTERVAL '7 days' THEN 1 END)::integer as visits_7d
+            FROM activity_log
+        """
+        return db.execute_one(query)
+
+    @staticmethod
+    def get_song_stats(hours=None):
+        """
+        Get play/download stats per song.
+
+        Args:
+            hours: Optional time filter in hours (None for all time)
+
+        Returns:
+            List of dicts with song info and play/download counts
+        """
+        time_filter = ""
+        params = ()
+        if hours:
+            time_filter = "AND a.created_at >= NOW() - INTERVAL '%s hours'"
+            params = (hours,)
+
+        query = f"""
+            SELECT
+                s.id,
+                s.identifier,
+                s.title,
+                s.artist,
+                s.album,
+                s.listen_count as total_plays,
+                s.download_count as total_downloads,
+                COUNT(CASE WHEN a.event_type = 'play' THEN 1 END)::integer as plays,
+                COUNT(CASE WHEN a.event_type = 'download' THEN 1 END)::integer as downloads
+            FROM songs s
+            LEFT JOIN activity_log a ON s.id = a.song_id {time_filter}
+            GROUP BY s.id
+            ORDER BY plays DESC, downloads DESC, s.title
+        """
+        return db.execute(query, params)
+
+    @staticmethod
+    def get_recent_activity(limit=50):
+        """
+        Get recent activity events.
+
+        Args:
+            limit: Maximum number of events to return
+
+        Returns:
+            List of activity records with song info
+        """
+        query = """
+            SELECT
+                a.*,
+                s.title as song_title,
+                s.identifier as song_identifier
+            FROM activity_log a
+            LEFT JOIN songs s ON a.song_id = s.id
+            ORDER BY a.created_at DESC
+            LIMIT %s
+        """
+        return db.execute(query, (limit,))
+
+    @staticmethod
+    def get_top_songs(hours=24, limit=10):
+        """
+        Get top songs by plays in the given time period.
+
+        Args:
+            hours: Time period in hours
+            limit: Maximum number of songs to return
+
+        Returns:
+            List of songs with play counts
+        """
+        query = """
+            SELECT
+                s.id,
+                s.identifier,
+                s.title,
+                s.artist,
+                COUNT(*)::integer as plays
+            FROM activity_log a
+            JOIN songs s ON a.song_id = s.id
+            WHERE a.event_type = 'play'
+              AND a.created_at >= NOW() - INTERVAL '%s hours'
+            GROUP BY s.id
+            ORDER BY plays DESC
+            LIMIT %s
+        """
+        return db.execute(query, (hours, limit))
