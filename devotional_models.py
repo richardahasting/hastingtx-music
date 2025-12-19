@@ -425,6 +425,13 @@ class DevotionalSubscriber:
         """
         db.execute(query, (user_identifier, email), fetch=False)
 
+    @staticmethod
+    def get_count():
+        """Get count of active subscribers"""
+        query = "SELECT COUNT(*)::integer as count FROM devotional_subscribers WHERE is_active = TRUE"
+        result = db.execute_one(query)
+        return result['count'] if result else 0
+
 
 class DevotionalEnrollment:
     """Model for email drip enrollments"""
