@@ -362,12 +362,18 @@ def admin_stats():
     # Get top songs for the period
     top_songs = ActivityLog.get_top_songs(hours=hours, limit=10)
 
+    # Get email subscribers
+    subscribers = Subscriber.get_active_subscribers()
+    subscriber_count = Subscriber.get_count()
+
     return render_template('admin_stats.html',
                          visitor_stats=visitor_stats,
                          song_stats=song_stats,
                          recent_activity=recent_activity,
                          top_songs=top_songs,
-                         selected_hours=hours)
+                         selected_hours=hours,
+                         subscribers=subscribers,
+                         subscriber_count=subscriber_count)
 
 
 @app.route('/admin/upload', methods=['GET', 'POST'])
