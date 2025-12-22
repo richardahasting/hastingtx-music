@@ -1542,6 +1542,11 @@ def devotional_day(identifier, day_number):
     # Can only go to next if current is complete
     next_accessible = next_day and is_day_complete
 
+    # Log the devotional read
+    ActivityLog.log_event('devotional_read', request.remote_addr,
+                          devotional_id=devotional['id'],
+                          user_agent=request.user_agent.string)
+
     return render_template('devotionals/day.html',
                          thread=thread,
                          devotional=devotional,
@@ -1777,6 +1782,41 @@ def admin_devotionals():
     return render_template('devotionals/admin.html',
                          threads=threads,
                          subscribers=subscribers)
+
+
+@app.route('/admin/devotionals/stats')
+@require_admin_ip
+def admin_devotional_stats():
+    """Devotional stats dashboard."""
+    # Get time filter from query string (default: 24 hours)
+    hours = request.args.get('hours', 24, type=int)
+    if hours not in [24, 168, 720]:  # 24h, 7d, 30d
+        hours = 24
+
+    # Get overall devotional stats
+    devotional_stats = ActivityLog.get_devotional_stats()
+
+    # Get per-thread stats for the selected time period
+    thread_stats = ActivityLog.get_devotional_thread_stats(hours=hours)
+
+    # Get top devotionals
+    top_devotionals = ActivityLog.get_top_devotionals(hours=hours, limit=10)
+
+    # Get recent activity
+    recent_activity = ActivityLog.get_recent_devotional_activity(limit=50)
+
+    # Get subscribers
+    subscribers = DevotionalSubscriber.get_all_active()
+    subscriber_count = DevotionalSubscriber.get_count()
+
+    return render_template('devotionals/stats.html',
+                         devotional_stats=devotional_stats,
+                         thread_stats=thread_stats,
+                         top_devotionals=top_devotionals,
+                         recent_activity=recent_activity,
+                         subscribers=subscribers,
+                         subscriber_count=subscriber_count,
+                         selected_hours=hours)
 
 
 @app.route('/admin/devotionals/threads/create', methods=['GET', 'POST'])

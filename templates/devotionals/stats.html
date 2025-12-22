@@ -1,0 +1,275 @@
+{% extends "base.html" %}
+
+{% block title %}Devotional Stats - HastingTX{% endblock %}
+
+{% block nav_extra %}
+<li>
+    <a href="{{ url_for('admin_devotionals') }}" class="flex items-center gap-2 px-4 py-2 text-slate-600 dark:text-slate-300 hover:text-primary-600 dark:hover:text-primary-400 transition-colors">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+        </svg>
+        Admin
+    </a>
+</li>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <!-- Page Header -->
+    <div class="mb-8">
+        <h1 class="font-display text-3xl sm:text-4xl font-bold text-slate-900 dark:text-white">
+            Devotional Stats
+        </h1>
+        <p class="mt-2 text-slate-600 dark:text-slate-400">
+            Devotional reading activity and statistics
+        </p>
+    </div>
+
+    <!-- Overview Stats Cards -->
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
+        <div class="bg-gradient-to-br from-amber-500 to-amber-600 rounded-2xl p-6 text-white shadow-lg">
+            <div class="text-4xl font-bold">{{ devotional_stats.reads_24h or 0 }}</div>
+            <div class="text-amber-100 text-sm font-medium mt-1">Reads (24h)</div>
+        </div>
+        <div class="bg-gradient-to-br from-amber-600 to-amber-700 rounded-2xl p-6 text-white shadow-lg">
+            <div class="text-4xl font-bold">{{ devotional_stats.reads_7d or 0 }}</div>
+            <div class="text-amber-100 text-sm font-medium mt-1">Reads (7d)</div>
+        </div>
+        <div class="bg-gradient-to-br from-amber-700 to-amber-800 rounded-2xl p-6 text-white shadow-lg">
+            <div class="text-4xl font-bold">{{ devotional_stats.reads_30d or 0 }}</div>
+            <div class="text-amber-100 text-sm font-medium mt-1">Reads (30d)</div>
+        </div>
+        <div class="bg-gradient-to-br from-amber-800 to-amber-900 rounded-2xl p-6 text-white shadow-lg">
+            <div class="text-4xl font-bold">{{ devotional_stats.reads_total or 0 }}</div>
+            <div class="text-amber-100 text-sm font-medium mt-1">Total Reads</div>
+        </div>
+    </div>
+
+    <!-- Unique Readers Stats -->
+    <div class="grid grid-cols-3 gap-4 mb-8">
+        <div class="bg-white dark:bg-surface-800 rounded-2xl p-6 border border-slate-200 dark:border-slate-700 shadow-sm">
+            <div class="text-3xl font-bold text-slate-900 dark:text-white">{{ devotional_stats.readers_24h or 0 }}</div>
+            <div class="text-slate-500 dark:text-slate-400 text-sm font-medium mt-1">Unique Readers (24h)</div>
+        </div>
+        <div class="bg-white dark:bg-surface-800 rounded-2xl p-6 border border-slate-200 dark:border-slate-700 shadow-sm">
+            <div class="text-3xl font-bold text-slate-900 dark:text-white">{{ devotional_stats.readers_7d or 0 }}</div>
+            <div class="text-slate-500 dark:text-slate-400 text-sm font-medium mt-1">Unique Readers (7d)</div>
+        </div>
+        <div class="bg-white dark:bg-surface-800 rounded-2xl p-6 border border-slate-200 dark:border-slate-700 shadow-sm">
+            <div class="text-3xl font-bold text-slate-900 dark:text-white">{{ devotional_stats.readers_30d or 0 }}</div>
+            <div class="text-slate-500 dark:text-slate-400 text-sm font-medium mt-1">Unique Readers (30d)</div>
+        </div>
+    </div>
+
+    <!-- Top Devotionals Section -->
+    {% if top_devotionals %}
+    <section class="bg-white dark:bg-surface-800 rounded-2xl shadow-card border border-slate-200 dark:border-slate-700 mb-8 overflow-hidden">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 p-6 border-b border-slate-200 dark:border-slate-700">
+            <h2 class="font-display text-xl font-semibold text-slate-900 dark:text-white">
+                Top Devotionals ({{ '24 hours' if selected_hours == 24 else ('7 days' if selected_hours == 168 else '30 days') }})
+            </h2>
+            <div class="flex gap-2">
+                <a href="?hours=24" class="px-3 py-1.5 text-sm font-medium rounded-lg transition-colors {{ 'bg-amber-600 text-white' if selected_hours == 24 else 'bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600' }}">24h</a>
+                <a href="?hours=168" class="px-3 py-1.5 text-sm font-medium rounded-lg transition-colors {{ 'bg-amber-600 text-white' if selected_hours == 168 else 'bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600' }}">7d</a>
+                <a href="?hours=720" class="px-3 py-1.5 text-sm font-medium rounded-lg transition-colors {{ 'bg-amber-600 text-white' if selected_hours == 720 else 'bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600' }}">30d</a>
+            </div>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead class="bg-slate-50 dark:bg-surface-900/50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider w-12">#</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Devotional</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider hidden sm:table-cell">Thread</th>
+                        <th class="px-6 py-3 text-center text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Reads</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-200 dark:divide-slate-700">
+                    {% for item in top_devotionals %}
+                    <tr class="hover:bg-slate-50 dark:hover:bg-surface-700/50 transition-colors">
+                        <td class="px-6 py-4 text-slate-500 dark:text-slate-400 font-medium">
+                            {{ loop.index }}
+                        </td>
+                        <td class="px-6 py-4">
+                            <a href="{{ url_for('devotional_day', identifier=item.thread_identifier, day=item.day_number) }}" class="font-medium text-slate-900 dark:text-white hover:text-amber-600 dark:hover:text-amber-400 transition-colors">
+                                Day {{ item.day_number }}: {{ item.day_title }}
+                            </a>
+                        </td>
+                        <td class="px-6 py-4 text-slate-600 dark:text-slate-400 hidden sm:table-cell">
+                            <a href="{{ url_for('devotional_thread', identifier=item.thread_identifier) }}" class="hover:text-amber-600 dark:hover:text-amber-400">
+                                {{ item.thread_title }}
+                            </a>
+                        </td>
+                        <td class="px-6 py-4 text-center">
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-300">
+                                {{ item.reads }}
+                            </span>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+    {% endif %}
+
+    <!-- Thread Stats Section -->
+    <section class="bg-white dark:bg-surface-800 rounded-2xl shadow-card border border-slate-200 dark:border-slate-700 mb-8 overflow-hidden">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 p-6 border-b border-slate-200 dark:border-slate-700">
+            <h2 class="font-display text-xl font-semibold text-slate-900 dark:text-white">
+                Stats by Thread
+            </h2>
+        </div>
+
+        {% if thread_stats %}
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead class="bg-slate-50 dark:bg-surface-900/50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Thread</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider hidden sm:table-cell">Author</th>
+                        <th class="px-6 py-3 text-center text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Days</th>
+                        <th class="px-6 py-3 text-center text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Reads (Period)</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-200 dark:divide-slate-700">
+                    {% for thread in thread_stats %}
+                    <tr class="hover:bg-slate-50 dark:hover:bg-surface-700/50 transition-colors">
+                        <td class="px-6 py-4">
+                            <a href="{{ url_for('devotional_thread', identifier=thread.identifier) }}" class="font-medium text-slate-900 dark:text-white hover:text-amber-600 dark:hover:text-amber-400 transition-colors">
+                                {{ thread.title }}
+                            </a>
+                        </td>
+                        <td class="px-6 py-4 text-slate-600 dark:text-slate-400 hidden sm:table-cell">
+                            {{ thread.author or '-' }}
+                        </td>
+                        <td class="px-6 py-4 text-center text-slate-600 dark:text-slate-400">
+                            {{ thread.total_days }}
+                        </td>
+                        <td class="px-6 py-4 text-center">
+                            {% if thread.reads > 0 %}
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-300">
+                                {{ thread.reads }}
+                            </span>
+                            {% else %}
+                            <span class="text-slate-400">0</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="p-12 text-center">
+            <svg class="w-16 h-16 mx-auto text-slate-300 dark:text-slate-600 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
+            </svg>
+            <p class="text-slate-500 dark:text-slate-400">No devotional threads yet</p>
+        </div>
+        {% endif %}
+    </section>
+
+    <!-- Email Subscribers Section -->
+    <section class="bg-white dark:bg-surface-800 rounded-2xl shadow-card border border-slate-200 dark:border-slate-700 mb-8 overflow-hidden">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 p-6 border-b border-slate-200 dark:border-slate-700">
+            <h2 class="font-display text-xl font-semibold text-slate-900 dark:text-white">
+                Devotional Subscribers
+                <span class="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-300">
+                    {{ subscriber_count }}
+                </span>
+            </h2>
+        </div>
+
+        {% if subscribers %}
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead class="bg-slate-50 dark:bg-surface-900/50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Email</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider hidden sm:table-cell">Name</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider hidden md:table-cell">Subscribed</th>
+                        <th class="px-6 py-3 text-center text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">New Threads</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-200 dark:divide-slate-700">
+                    {% for subscriber in subscribers %}
+                    <tr class="hover:bg-slate-50 dark:hover:bg-surface-700/50 transition-colors">
+                        <td class="px-6 py-4">
+                            <span class="font-medium text-slate-900 dark:text-white">{{ subscriber.email }}</span>
+                        </td>
+                        <td class="px-6 py-4 text-slate-600 dark:text-slate-400 hidden sm:table-cell">
+                            {{ subscriber.name or '-' }}
+                        </td>
+                        <td class="px-6 py-4 text-slate-600 dark:text-slate-400 text-sm hidden md:table-cell">
+                            {{ subscriber.subscribed_at.strftime('%Y-%m-%d %H:%M') if subscriber.subscribed_at else '-' }}
+                        </td>
+                        <td class="px-6 py-4 text-center">
+                            {% if subscriber.receive_new_threads %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400">Yes</span>
+                            {% else %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400">No</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="p-12 text-center">
+            <svg class="w-16 h-16 mx-auto text-slate-300 dark:text-slate-600 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+            </svg>
+            <p class="text-slate-500 dark:text-slate-400">No subscribers yet</p>
+        </div>
+        {% endif %}
+    </section>
+
+    <!-- Recent Activity Section -->
+    <section class="bg-white dark:bg-surface-800 rounded-2xl shadow-card border border-slate-200 dark:border-slate-700 overflow-hidden">
+        <div class="p-6 border-b border-slate-200 dark:border-slate-700">
+            <h2 class="font-display text-xl font-semibold text-slate-900 dark:text-white">
+                Recent Activity
+            </h2>
+        </div>
+
+        {% if recent_activity %}
+        <div class="divide-y divide-slate-200 dark:divide-slate-700 max-h-96 overflow-y-auto">
+            {% for event in recent_activity %}
+            <div class="px-6 py-4 flex items-center gap-4 hover:bg-slate-50 dark:hover:bg-surface-700/50 transition-colors">
+                <!-- Event Type Icon -->
+                <div class="flex-shrink-0">
+                    <div class="w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
+                        <svg class="w-5 h-5 text-amber-600 dark:text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
+                        </svg>
+                    </div>
+                </div>
+
+                <!-- Event Details -->
+                <div class="flex-1 min-w-0">
+                    <div class="text-sm font-medium text-slate-900 dark:text-white">
+                        Read <a href="{{ url_for('devotional_day', identifier=event.thread_identifier, day=event.day_number) }}" class="text-amber-600 dark:text-amber-400 hover:underline">Day {{ event.day_number }}: {{ event.day_title }}</a>
+                        <span class="text-slate-500 dark:text-slate-400">from</span>
+                        <a href="{{ url_for('devotional_thread', identifier=event.thread_identifier) }}" class="text-amber-600 dark:text-amber-400 hover:underline">{{ event.thread_title }}</a>
+                    </div>
+                    <div class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                        {{ event.ip_address }} &middot; {{ event.created_at.strftime('%Y-%m-%d %H:%M:%S') }}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="p-12 text-center">
+            <svg class="w-16 h-16 mx-auto text-slate-300 dark:text-slate-600 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+            <p class="text-slate-500 dark:text-slate-400">No recent activity</p>
+        </div>
+        {% endif %}
+    </section>
+</div>
+{% endblock %}

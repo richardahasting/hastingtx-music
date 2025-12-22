@@ -714,14 +714,15 @@ class ActivityLog:
     """Activity log model for tracking visits, plays, and downloads."""
 
     @staticmethod
-    def log_event(event_type, ip_address, song_id=None, page_path=None, user_agent=None):
+    def log_event(event_type, ip_address, song_id=None, devotional_id=None, page_path=None, user_agent=None):
         """
         Log an activity event.
 
         Args:
-            event_type: Type of event ('visit', 'play', 'download')
+            event_type: Type of event ('visit', 'play', 'download', 'devotional_read')
             ip_address: Client IP address
             song_id: Optional song ID for play/download events
+            devotional_id: Optional devotional ID for devotional_read events
             page_path: Optional page path for visit events
             user_agent: Optional browser/client info
 
@@ -729,11 +730,11 @@ class ActivityLog:
             Activity log record
         """
         query = """
-            INSERT INTO activity_log (event_type, ip_address, song_id, page_path, user_agent)
-            VALUES (%s, %s, %s, %s, %s)
+            INSERT INTO activity_log (event_type, ip_address, song_id, devotional_id, page_path, user_agent)
+            VALUES (%s, %s, %s, %s, %s, %s)
             RETURNING *
         """
-        return db.insert(query, (event_type, ip_address, song_id, page_path, user_agent))
+        return db.insert(query, (event_type, ip_address, song_id, devotional_id, page_path, user_agent))
 
     @staticmethod
     def get_unique_visitors(hours=24):
@@ -862,3 +863,149 @@ class ActivityLog:
             LIMIT %s
         """
         return db.execute(query, (hours, limit))
+
+    @staticmethod
+    def get_devotional_stats():
+        """
+        Get devotional read statistics for dashboard.
+
+        Returns:
+            Dict with read counts for 24h, 7d, 30d
+        """
+        query = """
+            SELECT
+                COUNT(CASE WHEN created_at >= NOW() - INTERVAL '24 hours' THEN 1 END)::integer as reads_24h,
+                COUNT(CASE WHEN created_at >= NOW() - INTERVAL '7 days' THEN 1 END)::integer as reads_7d,
+                COUNT(CASE WHEN created_at >= NOW() - INTERVAL '30 days' THEN 1 END)::integer as reads_30d,
+                COUNT(*)::integer as reads_total,
+                COUNT(DISTINCT CASE WHEN created_at >= NOW() - INTERVAL '24 hours' THEN ip_address END)::integer as readers_24h,
+                COUNT(DISTINCT CASE WHEN created_at >= NOW() - INTERVAL '7 days' THEN ip_address END)::integer as readers_7d,
+                COUNT(DISTINCT CASE WHEN created_at >= NOW() - INTERVAL '30 days' THEN ip_address END)::integer as readers_30d
+            FROM activity_log
+            WHERE event_type = 'devotional_read'
+        """
+        return db.execute_one(query)
+
+    @staticmethod
+    def get_devotional_thread_stats(hours=None):
+        """
+        Get read stats per devotional thread.
+
+        Args:
+            hours: Optional time filter in hours (None for all time)
+
+        Returns:
+            List of threads with read counts
+        """
+        time_filter = ""
+        params = ()
+        if hours:
+            time_filter = "AND a.created_at >= NOW() - INTERVAL '%s hours'"
+            params = (hours,)
+
+        query = f"""
+            SELECT
+                t.id,
+                t.identifier,
+                t.title,
+                t.author,
+                t.total_days,
+                COUNT(a.id)::integer as reads
+            FROM devotional_threads t
+            LEFT JOIN devotionals d ON d.thread_id = t.id
+            LEFT JOIN activity_log a ON a.devotional_id = d.id AND a.event_type = 'devotional_read' {time_filter}
+            WHERE t.is_published = TRUE
+            GROUP BY t.id
+            ORDER BY reads DESC, t.title
+        """
+        return db.execute(query, params)
+
+    @staticmethod
+    def get_devotional_day_stats(thread_id, hours=None):
+        """
+        Get read stats per day for a specific thread.
+
+        Args:
+            thread_id: Thread ID to get stats for
+            hours: Optional time filter in hours
+
+        Returns:
+            List of days with read counts
+        """
+        time_filter = ""
+        params = [thread_id]
+        if hours:
+            time_filter = "AND a.created_at >= NOW() - INTERVAL '%s hours'"
+            params.append(hours)
+
+        query = f"""
+            SELECT
+                d.id,
+                d.day_number,
+                d.title,
+                COUNT(a.id)::integer as reads
+            FROM devotionals d
+            LEFT JOIN activity_log a ON a.devotional_id = d.id AND a.event_type = 'devotional_read' {time_filter}
+            WHERE d.thread_id = %s
+            GROUP BY d.id
+            ORDER BY d.day_number
+        """
+        return db.execute(query, tuple(params))
+
+    @staticmethod
+    def get_top_devotionals(hours=24, limit=10):
+        """
+        Get top devotionals by reads in the given time period.
+
+        Args:
+            hours: Time period in hours
+            limit: Maximum number to return
+
+        Returns:
+            List of devotionals with read counts
+        """
+        query = """
+            SELECT
+                d.id,
+                d.day_number,
+                d.title as day_title,
+                t.title as thread_title,
+                t.identifier as thread_identifier,
+                COUNT(*)::integer as reads
+            FROM activity_log a
+            JOIN devotionals d ON a.devotional_id = d.id
+            JOIN devotional_threads t ON d.thread_id = t.id
+            WHERE a.event_type = 'devotional_read'
+              AND a.created_at >= NOW() - INTERVAL '%s hours'
+            GROUP BY d.id, t.id
+            ORDER BY reads DESC
+            LIMIT %s
+        """
+        return db.execute(query, (hours, limit))
+
+    @staticmethod
+    def get_recent_devotional_activity(limit=50):
+        """
+        Get recent devotional read events.
+
+        Args:
+            limit: Maximum number of events to return
+
+        Returns:
+            List of activity records with devotional info
+        """
+        query = """
+            SELECT
+                a.*,
+                d.day_number,
+                d.title as day_title,
+                t.title as thread_title,
+                t.identifier as thread_identifier
+            FROM activity_log a
+            JOIN devotionals d ON a.devotional_id = d.id
+            JOIN devotional_threads t ON d.thread_id = t.id
+            WHERE a.event_type = 'devotional_read'
+            ORDER BY a.created_at DESC
+            LIMIT %s
+        """
+        return db.execute(query, (limit,))

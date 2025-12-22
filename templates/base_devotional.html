@@ -1,69 +1,226 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="scroll-smooth">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#ffffff">
     <title>{% block title %}Pull The Thread{% endblock %}</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=20251212c">
+
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: {
+                            50: '#fffbeb',
+                            100: '#fef3c7',
+                            200: '#fde68a',
+                            300: '#fcd34d',
+                            400: '#fbbf24',
+                            500: '#f59e0b',
+                            600: '#d97706',
+                            700: '#b45309',
+                            800: '#92400e',
+                            900: '#78350f',
+                            950: '#451a03'
+                        },
+                        surface: {
+                            800: '#1e293b',
+                            900: '#0f172a'
+                        }
+                    },
+                    fontFamily: {
+                        'display': ['Playfair Display', 'Georgia', 'serif'],
+                        'sans': ['Source Sans 3', 'system-ui', 'sans-serif']
+                    },
+                    boxShadow: {
+                        'card': '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1)',
+                        'glass': '0 8px 32px rgba(0, 0, 0, 0.08)'
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=Source+Sans+3:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Theme Script (prevents flash) -->
+    <script>
+        (function() {
+            const stored = localStorage.getItem('hastingtx-theme');
+            const preferred = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+            const theme = stored || preferred;
+            if (theme === 'dark') document.documentElement.classList.add('dark');
+        })();
+    </script>
+
+    <style>
+        /* Base styles */
+        body {
+            font-family: 'Source Sans 3', system-ui, sans-serif;
+        }
+
+        /* Theme transition */
+        .theme-transitioning,
+        .theme-transitioning * {
+            transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease !important;
+        }
+
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #d97706;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #b45309;
+        }
+        .dark ::-webkit-scrollbar-thumb {
+            background: #fbbf24;
+        }
+
+        /* Progress bar animation */
+        .progress-fill {
+            transition: width 0.5s ease;
+        }
+    </style>
+
     {% block extra_css %}{% endblock %}
 </head>
-<body>
-    <header class="devotional-header">
-        <nav class="navbar devotional-navbar">
-            <div class="container">
-                <h1 class="logo">
-                    <a href="{{ url_for('devotionals_index') }}">Pull The Thread</a>
-                </h1>
-                <ul class="nav-links">
-                    <li><a href="{{ url_for('index') }}">HastingTX Music</a></li>
+<body class="min-h-screen bg-amber-50/30 dark:bg-surface-900 text-slate-900 dark:text-slate-100 antialiased">
+    <!-- Navigation -->
+    <header class="sticky top-0 z-50 bg-white/90 dark:bg-surface-900/90 backdrop-blur-xl border-b border-amber-200/50 dark:border-amber-900/30 shadow-sm">
+        <nav class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <!-- Logo -->
+                <a href="{{ url_for('devotionals_index') }}" class="flex items-center gap-3 group">
+                    <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-600 to-primary-800 flex items-center justify-center shadow-lg group-hover:shadow-primary-500/25 transition-shadow">
+                        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
+                        </svg>
+                    </div>
+                    <span class="font-display text-xl font-semibold text-primary-800 dark:text-primary-400">Pull The Thread</span>
+                </a>
+
+                <!-- Nav Links -->
+                <div class="flex items-center gap-4">
+                    <a href="{{ url_for('index') }}" class="hidden sm:flex items-center gap-2 px-3 py-2 text-sm text-slate-600 dark:text-slate-300 hover:text-primary-700 dark:hover:text-primary-400 transition-colors">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"/>
+                        </svg>
+                        Music
+                    </a>
+
                     {% if is_admin_ip %}
-                    <li><a href="{{ url_for('admin_devotionals') }}" class="admin-link">Admin</a></li>
+                    <a href="{{ url_for('admin_devotional_stats') }}" class="hidden sm:flex items-center gap-2 px-3 py-2 text-sm text-slate-600 dark:text-slate-300 hover:text-primary-700 dark:hover:text-primary-400 transition-colors">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                        </svg>
+                        Stats
+                    </a>
+                    <a href="{{ url_for('admin_devotionals') }}" class="hidden sm:flex items-center gap-2 px-3 py-2 text-sm text-slate-600 dark:text-slate-300 hover:text-primary-700 dark:hover:text-primary-400 transition-colors">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                        </svg>
+                        Admin
+                    </a>
                     {% endif %}
-                </ul>
+
+                    <!-- Theme Toggle -->
+                    <button id="theme-toggle" type="button"
+                        class="p-2 rounded-lg text-slate-500 dark:text-slate-400 hover:bg-amber-100 dark:hover:bg-slate-800 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
+                        aria-label="Toggle dark mode">
+                        <!-- Sun icon (shown in dark mode) -->
+                        <svg class="w-5 h-5 hidden dark:block" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/>
+                        </svg>
+                        <!-- Moon icon (shown in light mode) -->
+                        <svg class="w-5 h-5 block dark:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>
+                        </svg>
+                    </button>
+                </div>
             </div>
         </nav>
     </header>
 
-    <main class="container">
+    <!-- Main Content -->
+    <main class="flex-1">
         {% block content %}{% endblock %}
     </main>
 
-    <div class="save-progress-section">
-        <div class="container">
-            <div class="save-progress-box">
-                <div class="save-progress-header" onclick="toggleSaveProgress()">
-                    <span class="save-icon">&#128274;</span>
-                    <span>Save Your Progress</span>
-                    <span class="toggle-arrow" id="save-toggle-arrow">&#9660;</span>
-                </div>
-                <div class="save-progress-content" id="save-progress-content" style="display: none;">
-                    <p>Enter your email to get a magic link. Use it to access your progress from any device.</p>
-                    <form id="save-progress-form" class="save-progress-form">
-                        <input type="email" id="save-progress-email" name="email" placeholder="your@email.com" required>
-                        <button type="submit" class="btn btn-save">Send Link</button>
+    <!-- Save Progress Section -->
+    <div class="border-t border-amber-200 dark:border-amber-900/30 bg-white/80 dark:bg-surface-800/80 backdrop-blur-sm">
+        <div class="max-w-2xl mx-auto px-4 py-6">
+            <div class="bg-gradient-to-r from-primary-50 to-amber-50 dark:from-primary-950/50 dark:to-amber-950/50 rounded-xl border border-primary-200 dark:border-primary-800/50 overflow-hidden">
+                <button onclick="toggleSaveProgress()" class="w-full flex items-center justify-between px-5 py-4 text-left group">
+                    <div class="flex items-center gap-3">
+                        <div class="w-8 h-8 rounded-lg bg-primary-600 dark:bg-primary-500 flex items-center justify-center">
+                            <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"/>
+                            </svg>
+                        </div>
+                        <span class="font-medium text-slate-900 dark:text-white">Save Your Progress</span>
+                    </div>
+                    <svg id="save-toggle-arrow" class="w-5 h-5 text-slate-400 dark:text-slate-500 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                    </svg>
+                </button>
+
+                <div id="save-progress-content" class="hidden px-5 pb-5">
+                    <p class="text-sm text-slate-600 dark:text-slate-400 mb-4">
+                        Enter your email to get a magic link. Use it to access your progress from any device.
+                    </p>
+                    <form id="save-progress-form" class="flex flex-col sm:flex-row gap-3">
+                        <input type="email" id="save-progress-email" name="email" placeholder="your@email.com" required
+                            class="flex-1 px-4 py-2.5 bg-white dark:bg-surface-900 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors text-slate-900 dark:text-white placeholder-slate-400 text-sm">
+                        <button type="submit" class="px-5 py-2.5 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-lg transition-colors shadow-sm whitespace-nowrap">
+                            Send Link
+                        </button>
                     </form>
-                    <div id="save-progress-message" class="save-progress-message" style="display: none;"></div>
+                    <div id="save-progress-message" class="hidden mt-3 px-4 py-2 rounded-lg text-sm"></div>
                 </div>
             </div>
         </div>
     </div>
 
-    <footer>
-        <div class="container">
-            <p>&copy; 2025 HastingTX. Daily devotionals to strengthen your faith.</p>
+    <!-- Footer -->
+    <footer class="border-t border-amber-200/50 dark:border-amber-900/30 bg-white/50 dark:bg-surface-900/50">
+        <div class="max-w-6xl mx-auto px-4 py-8 text-center">
+            <p class="text-sm text-slate-500 dark:text-slate-500">
+                &copy; 2025 HastingTX. Daily devotionals to strengthen your faith.
+            </p>
         </div>
     </footer>
+
+    <!-- Scripts -->
+    <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
 
     <script>
     function toggleSaveProgress() {
         const content = document.getElementById('save-progress-content');
         const arrow = document.getElementById('save-toggle-arrow');
-        if (content.style.display === 'none') {
-            content.style.display = 'block';
-            arrow.innerHTML = '&#9650;';
+        const isHidden = content.classList.contains('hidden');
+
+        if (isHidden) {
+            content.classList.remove('hidden');
+            arrow.classList.add('rotate-180');
         } else {
-            content.style.display = 'none';
-            arrow.innerHTML = '&#9660;';
+            content.classList.add('hidden');
+            arrow.classList.remove('rotate-180');
         }
     }
 
@@ -75,7 +232,7 @@
 
         btn.disabled = true;
         btn.textContent = 'Sending...';
-        msgDiv.style.display = 'none';
+        msgDiv.classList.add('hidden');
 
         fetch('/devotionals/save-progress', {
             method: 'POST',
@@ -84,19 +241,19 @@
         })
         .then(r => r.json())
         .then(data => {
-            msgDiv.style.display = 'block';
+            msgDiv.classList.remove('hidden');
             if (data.success) {
-                msgDiv.className = 'save-progress-message success';
+                msgDiv.className = 'mt-3 px-4 py-2 rounded-lg text-sm bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400';
                 msgDiv.textContent = data.message;
                 document.getElementById('save-progress-email').value = '';
             } else {
-                msgDiv.className = 'save-progress-message error';
+                msgDiv.className = 'mt-3 px-4 py-2 rounded-lg text-sm bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400';
                 msgDiv.textContent = data.error || 'Something went wrong';
             }
         })
         .catch(err => {
-            msgDiv.style.display = 'block';
-            msgDiv.className = 'save-progress-message error';
+            msgDiv.classList.remove('hidden');
+            msgDiv.className = 'mt-3 px-4 py-2 rounded-lg text-sm bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400';
             msgDiv.textContent = 'Network error. Please try again.';
         })
         .finally(() => {
@@ -106,7 +263,6 @@
     });
     </script>
 
-    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
     {% block extra_js %}{% endblock %}
 </body>
 </html>
